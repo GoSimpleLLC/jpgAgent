@@ -68,7 +68,7 @@ public class ThreadFactoryTest
     @Test
     public void testSubmitTaskCallable() throws Exception
     {
-        Callable test = new Callable<Integer>()
+        Callable<Integer> test = new Callable<Integer>()
         {
             @Override
             public Integer call()
@@ -77,9 +77,9 @@ public class ThreadFactoryTest
             }
         };
 
-        Future future = ThreadFactory.INSTANCE.submitTask(test);
+        Future<Integer> future = ThreadFactory.INSTANCE.submitTask(test);
 
-        assertEquals(future.get(), 42);
+        assertEquals(future.get(), new Integer(42));
     }
 
     @Test
@@ -93,7 +93,7 @@ public class ThreadFactoryTest
                 System.out.println("I ran.");
             }
         };
-        Future future = ThreadFactory.INSTANCE.submitTask(test_1);
+        Future<?> future = ThreadFactory.INSTANCE.submitTask(test_1);
         future.get();
     }
 }
