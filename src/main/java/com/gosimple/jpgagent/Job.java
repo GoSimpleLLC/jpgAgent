@@ -319,7 +319,7 @@ public class Job implements CancellableRunnable
     private boolean submittedJobStepsRunning()
     {
         boolean jobsteps_running = false;
-        for (Future future : future_map.values())
+        for (Future<?> future : future_map.values())
         {
             if (!future.isDone())
             {
@@ -337,7 +337,7 @@ public class Job implements CancellableRunnable
     {
         for (JobStep job_step : future_map.keySet())
         {
-            final Future future = future_map.get(job_step);
+            final Future<?> future = future_map.get(job_step);
             if(job_step.isTimedOut() && !future.isDone())
             {
                 future.cancel(true);
@@ -367,7 +367,7 @@ public class Job implements CancellableRunnable
     @Override
     public void cancelTask()
     {
-        for (Future future : future_map.values())
+        for (Future<?> future : future_map.values())
         {
             if (!future.isDone())
             {

@@ -40,7 +40,7 @@ import java.util.concurrent.Future;
 
 class JPGAgent
 {
-    private static final Map<Integer, Future> job_future_map = new HashMap<>();
+    private static final Map<Integer, Future<?>> job_future_map = new HashMap<>();
     private static boolean run_cleanup = true;
 
     public static void main(String[] args)

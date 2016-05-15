@@ -645,7 +645,7 @@ public class JobStep implements CancellableRunnable
 
         final Class<?> annotation_value_type;
 
-        JobStepAnnotations(final Class annotation_value_type)
+        JobStepAnnotations(final Class<?> annotation_value_type)
         {
             this.annotation_value_type = annotation_value_type;
         }

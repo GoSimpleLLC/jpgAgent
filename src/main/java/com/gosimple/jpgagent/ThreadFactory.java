@@ -52,12 +52,12 @@ public enum ThreadFactory
         generalThreadPool.execute(r);
     }
 
-    public Future submitTask(Runnable r)
+    public Future<?> submitTask(Runnable r)
     {
         return generalThreadPool.submit(r);
     }
 
-    public Future submitTask(Callable c)
+    public <T> Future<T> submitTask(Callable<T> c)
     {
         return generalThreadPool.submit(c);
     }
