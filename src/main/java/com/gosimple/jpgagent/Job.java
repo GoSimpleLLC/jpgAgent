@@ -38,7 +38,7 @@ public class Job implements CancellableRunnable
     private String job_name;
     private String job_comment;
     private JobStatus job_status;
-    final List<JobStep> job_step_list = new ArrayList<>();
+    private final List<JobStep> job_step_list = new ArrayList<>();
     private final Map<JobStep, Future> future_map = new HashMap<>();
     private Long start_time;
     /*
@@ -47,7 +47,7 @@ public class Job implements CancellableRunnable
     // Timeout setting to abort job if running longer than this value.
     private Long job_timeout = null;
     // List of status to send an email on
-    private List<JobStatus> email_on = new ArrayList<>();
+    private final List<JobStatus> email_on = new ArrayList<>();
     // Email to list
     private String[] email_to = null;
     // Email subject
@@ -386,7 +386,7 @@ public class Job implements CancellableRunnable
 
         private final String db_representation;
 
-        private JobStatus(final String db_representation)
+        JobStatus(final String db_representation)
         {
             this.db_representation = db_representation;
         }
@@ -419,7 +419,7 @@ public class Job implements CancellableRunnable
 
         final Class<?> annotation_value_type;
 
-        private JobAnnotations(final Class annotation_value_type)
+        JobAnnotations(final Class annotation_value_type)
         {
             this.annotation_value_type = annotation_value_type;
         }

@@ -39,7 +39,7 @@ public enum Database
     private Connection main_connection;
     private Connection listener_connection;
 
-    private Database()
+    Database()
     {
         data_source = new PGSimpleDataSource();
         data_source.setServerName(Config.INSTANCE.db_host);

@@ -5,7 +5,7 @@ import javax.mail.internet.InternetAddress;
 import javax.mail.internet.MimeMessage;
 import java.util.Properties;
 
-public class EmailUtil
+class EmailUtil
 {
     public static void sendEmailFromNoReply(String[] to, String subject, String body) {
         sendEmail(to, Config.INSTANCE.smtp_email, subject, body);
@@ -57,8 +57,9 @@ public class EmailUtil
                 toAddress[i] = new InternetAddress(to[i]);
             }
 
-            for( int i = 0; i < toAddress.length; i++) {
-                message.addRecipient(Message.RecipientType.TO, toAddress[i]);
+            for (InternetAddress toAddres : toAddress)
+            {
+                message.addRecipient(Message.RecipientType.TO, toAddres);
             }
 
             message.setSubject(subject);

@@ -43,7 +43,6 @@ public class JobStep implements CancellableRunnable
     private final String step_description;
     private final StepType step_type;
     private String code;
-    private String db_name;
     private final OnError on_error;
     private OSType os_type;
     private final String connection_string;
@@ -70,7 +69,7 @@ public class JobStep implements CancellableRunnable
     // Database auth query
     private String database_auth_query = null;
     // List of status to send an email on
-    private List<StepStatus> email_on = new ArrayList<>();
+    private final List<StepStatus> email_on = new ArrayList<>();
     // Email to list
     private String[] email_to = null;
     // Email subject
@@ -78,7 +77,7 @@ public class JobStep implements CancellableRunnable
     // Email body
     private String email_body = null;
 
-    public JobStep(final int job_log_id, final int job_id, final String job_name, final int step_id, final String step_name, final String step_description, final StepType step_type, final String code, final String connection_string, final String db_name, final OnError on_error)
+    public JobStep(final int job_log_id, final int job_id, final String job_name, final int step_id, final String step_name, final String step_description, final StepType step_type, final String code, final String connection_string, final String database_name, final OnError on_error)
     {
         Config.INSTANCE.logger.debug("JobStep instantiation begin.");
         this.job_log_id = job_log_id;
@@ -90,7 +89,7 @@ public class JobStep implements CancellableRunnable
         this.step_type = step_type;
         this.code = code;
         this.connection_string = connection_string;
-        this.db_name = db_name;
+        this.database_name = database_name;
         this.on_error = on_error;
         String os_name = System.getProperty("os.name");
         if (os_name.startsWith("Windows"))
@@ -370,7 +369,7 @@ public class JobStep implements CancellableRunnable
             }
             if(annotations.containsKey(JobStepAnnotations.DATABASE_NAME.name()))
             {
-                db_name = AnnotationUtil.parseValue(JobStepAnnotations.DATABASE_NAME, annotations.get(JobStepAnnotations.DATABASE_NAME.name()), String.class);
+                database_name = AnnotationUtil.parseValue(JobStepAnnotations.DATABASE_NAME, annotations.get(JobStepAnnotations.DATABASE_NAME.name()), String.class);
             }
             if(annotations.containsKey(JobStepAnnotations.DATABASE_HOST.name()))
             {
@@ -429,14 +428,7 @@ public class JobStep implements CancellableRunnable
 
     private String getDatabase()
     {
-        if(database_name != null)
-        {
-            return database_name;
-        }
-        else
-        {
-            return db_name;
-        }
+        return database_name;
     }
 
     /**
@@ -515,7 +507,7 @@ public class JobStep implements CancellableRunnable
         return this.run_in_parallel;
     }
 
-    protected class DatabaseAuth
+    class DatabaseAuth
     {
         private final String user;
         private final String pass;
@@ -544,7 +536,7 @@ public class JobStep implements CancellableRunnable
 
         private final String db_representation;
 
-        private StepType(final String db_representation)
+        StepType(final String db_representation)
         {
             this.db_representation = db_representation;
         }
@@ -575,7 +567,7 @@ public class JobStep implements CancellableRunnable
 
         private final String db_representation;
 
-        private OnError(String db_representation)
+        OnError(String db_representation)
         {
             this.db_representation = db_representation;
         }
@@ -608,7 +600,7 @@ public class JobStep implements CancellableRunnable
 
         private final String db_representation;
 
-        private StepStatus(final String db_representation)
+        StepStatus(final String db_representation)
         {
             this.db_representation = db_representation;
         }
@@ -634,7 +626,7 @@ public class JobStep implements CancellableRunnable
     protected enum OSType
     {
         WIN,
-        NIX;
+        NIX
     }
 
     public enum JobStepAnnotations implements AnnotationDefinition
@@ -653,7 +645,7 @@ public class JobStep implements CancellableRunnable
 
         final Class<?> annotation_value_type;
 
-        private JobStepAnnotations(final Class annotation_value_type)
+        JobStepAnnotations(final Class annotation_value_type)
         {
             this.annotation_value_type = annotation_value_type;
         }

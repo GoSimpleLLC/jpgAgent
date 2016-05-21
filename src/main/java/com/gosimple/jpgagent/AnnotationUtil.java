@@ -30,7 +30,7 @@ import java.util.regex.Pattern;
 /**
  * Utility class to parse annotations from strings.
  */
-public class AnnotationUtil
+class AnnotationUtil
 {
     private static final Pattern annotation_pattern = Pattern.compile("^@([A-Z_]+)=(.+);$", Pattern.MULTILINE);
     private static final String value_regex = "^([0-9]*)+ ([a-z]*)+$";
@@ -74,6 +74,7 @@ public class AnnotationUtil
             return null;
         }
 
+        @SuppressWarnings("unchecked")
         final T return_value;
 
         try

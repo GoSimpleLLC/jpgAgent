@@ -22,7 +22,7 @@
 
 package com.gosimple.jpgagent;
 
-public interface AnnotationDefinition
+interface AnnotationDefinition
 {
     Class<?> getAnnotationValueType();
 }

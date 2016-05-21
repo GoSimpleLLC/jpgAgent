@@ -24,7 +24,7 @@ package com.gosimple.jpgagent;
 
 import java.util.concurrent.Callable;
 
-public interface CancellableCallable extends Callable
+interface CancellableCallable extends Callable
 {
     /**
      * Should stop any long running process the thread was doing to exit gracefully as quickly as possible.

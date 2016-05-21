@@ -38,7 +38,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Future;
 
-public class JPGAgent
+class JPGAgent
 {
     private static final Map<Integer, Future> job_future_map = new HashMap<>();
     private static boolean run_cleanup = true;

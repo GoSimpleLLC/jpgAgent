@@ -32,46 +32,46 @@ public enum Config
     INSTANCE;
 
     // Create a logger.
-    protected final Logger logger = LoggerFactory.getLogger("jpgAgent");
+    final Logger logger = LoggerFactory.getLogger("jpgAgent");
     // Host name for the system running jpgAgent.
-    protected String hostname;
+    String hostname;
     // Tokens for email replacement
-    protected String status_token = "~status~";
-    protected String job_name_token = "~job_name~";
-    protected String job_step_name_token = "~job_step_name~";
+    final String status_token = "~status~";
+    final String job_name_token = "~job_name~";
+    final String job_step_name_token = "~job_step_name~";
 
     @Option(name = "--help", help = true, required = false, usage = "Help")
-    protected boolean help = false;
+    boolean help = false;
     @Option(name = "--version", help = true, required = false, usage = "Version")
-    protected boolean version = false;
+    boolean version = false;
     @Option(name = "-h", required = true, usage = "Database host address.", metaVar = "String")
-    protected String db_host;
+    String db_host;
     @Option(name = "--port", required = false, usage = "Database host port.", metaVar = "Integer")
-    protected int db_port = 5432;
+    int db_port = 5432;
     @Option(name = "-u", required = true, usage = "Database user.", metaVar = "String")
-    protected String db_user;
+    String db_user;
     @Option(name = "-p", required = true, usage = "Database password.", metaVar = "String")
-    protected String db_password;
+    String db_password;
     @Option(name = "-d", required = true, usage = "jpgAgent database.", metaVar = "String")
-    protected String db_database;
+    String db_database;
     @Option(name = "-t", required = false, usage = "Job poll interval (ms).", metaVar = "Integer")
-    protected long job_poll_interval = 10000;
+    long job_poll_interval = 10000;
     @Option(name = "-r", required = false, usage = "Connection retry interval (ms).", metaVar = "Integer")
-    protected long connection_retry_interval = 30000;
+    long connection_retry_interval = 30000;
     @Option(name = "-w", required = false, usage = "Size of the thread pool to execute tasks.  Each job and job step can take up to a thread in the pool at once.", metaVar = "Integer")
-    protected int thread_pool_size = 40;
+    int thread_pool_size = 40;
     @Option(name = "--smtp-host", required = false, usage = "Server address used for smtp.", metaVar = "String")
-    protected String smtp_host;
+    String smtp_host;
     @Option(name = "--smtp-email", required = false, depends = {"--smtp-host"}, usage = "Email address used for smtp.", metaVar = "String")
-    protected String smtp_email;
+    String smtp_email;
     @Option(name = "--smtp-port", required = false, depends = {"--smtp-host"}, usage = "Server Port used for smtp.", metaVar = "String")
-    protected String smtp_port;
+    String smtp_port;
     @Option(name = "--smtp-user", required = false, depends = {"--smtp-host"}, usage = "User used for smtp.", metaVar = "String")
-    protected String smtp_user;
+    String smtp_user;
     @Option(name = "--smtp-password", required = false, depends = {"--smtp-host", "--smtp-user"}, usage = "Password used for smtp.", metaVar = "String")
-    protected String smtp_password;
+    String smtp_password;
     @Option(name = "--smtp-ssl", required = false, depends = {"--smtp-host"}, usage = "Is SSL enabled for the smtp connection.", metaVar = "Boolean")
-    protected Boolean smtp_ssl = true;
+    Boolean smtp_ssl = true;
 
 
 }
