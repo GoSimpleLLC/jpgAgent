@@ -9,11 +9,25 @@
     <packaging>jar</packaging>
     <version>1.2.0</version>
     <name>jpgAgent</name>
+    <description>jpgAgent is a job scheduler for PostgreSQL written in Java. It is low overhead, and aims to be fully compatible with pgAgent.</description>
+    <url>https://github.com/Tostino/jpgAgent</url>
+    <licenses>
+        <license>
+            <name>MIT license</name>
+            <url>http://www.spdx.org/licenses/MIT</url>
+        </license>
+    </licenses>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
     <build>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.5.1</version>
                 <configuration>
                     <source>1.8</source>
                     <target>1.8</target>
@@ -21,15 +35,8 @@
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-eclipse-plugin</artifactId>
-                <configuration>
-                    <downloadSources>true</downloadSources>
-                    <downloadJavadocs>false</downloadJavadocs>
-                </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-assembly-plugin</artifactId>
+                <version>2.6</version>
                 <executions>
                     <execution>
                         <phase>package</phase>
@@ -37,7 +44,7 @@
                             <goal>single</goal>
                         </goals>
                         <configuration>
-                            <finalName>${name}</finalName>
+                            <finalName>${project.name}</finalName>
                             <archive>
                                 <manifest>
                                     <mainClass>com.gosimple.jpgagent.JPGAgent</mainClass>
@@ -55,13 +62,6 @@
             </plugin>
         </plugins>
     </build>
-
-    <repositories>
-        <repository>
-            <id>The Buzz Media Maven Repository</id>
-            <url>http://maven.thebuzzmedia.com</url>
-        </repository>
-    </repositories>
 
     <dependencies>
         <dependency>
@@ -83,6 +83,7 @@
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
             <version>1.1.6</version>
+            <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>ch.qos.logback</groupId>
@@ -93,6 +94,7 @@
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
             <version>4.12</version>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>javax.mail</groupId>
@@ -103,6 +105,7 @@
             <groupId>javax.mail</groupId>
             <artifactId>mail</artifactId>
             <version>LATEST</version>
+            <scope>runtime</scope>
         </dependency>
     </dependencies>
 </project>
