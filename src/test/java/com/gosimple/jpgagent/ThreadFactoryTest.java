@@ -22,6 +22,7 @@
 
 package com.gosimple.jpgagent;
 
+import com.gosimple.jpgagent.thread.ThreadFactory;
 import org.junit.Test;
 
 import java.util.concurrent.Callable;

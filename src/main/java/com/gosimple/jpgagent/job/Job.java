@@ -20,7 +20,15 @@
  * SOFTWARE.
  */
 
-package com.gosimple.jpgagent;
+package com.gosimple.jpgagent.job;
+
+import com.gosimple.jpgagent.*;
+import com.gosimple.jpgagent.annotation.AnnotationUtil;
+import com.gosimple.jpgagent.database.Database;
+import com.gosimple.jpgagent.email.EmailUtil;
+import com.gosimple.jpgagent.job.step.*;
+import com.gosimple.jpgagent.thread.CancellableRunnable;
+import com.gosimple.jpgagent.thread.ThreadFactory;
 
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -38,7 +46,7 @@ public class Job implements CancellableRunnable
     private String job_name;
     private String job_comment;
     private JobStatus job_status;
-    private final List<JobStep> job_step_list = new ArrayList<>();
+    private List<JobStep> job_step_list;
     private final Map<JobStep, Future> future_map = new HashMap<>();
     private Long start_time;
     /*
@@ -56,60 +64,14 @@ public class Job implements CancellableRunnable
     private String email_body = null;
 
 
-    public Job(final int job_id)
+    public Job(final int job_id, final String job_name, final String job_comment, final int job_log_id)
     {
-        this.job_id = job_id;
         Config.INSTANCE.logger.debug("Instantiating Job begin.");
-        final String job_sql =
-                "SELECT jobname " +
-                ", jobdesc " +
-                "FROM pgagent.pga_job " +
-                "WHERE true " +
-                "AND jobid=?;";
-        try (final PreparedStatement statement = Database.INSTANCE.getMainConnection().prepareStatement(job_sql))
-        {
-            statement.setInt(1, job_id);
-            try (final ResultSet resultSet = statement.executeQuery())
-            {
-                if (resultSet.next())
-                {
-                    job_name = resultSet.getString("jobname");
-                    job_comment = resultSet.getString("jobdesc");
-                }
-            }
-        }
-        catch (final SQLException e)
-        {
-            Config.INSTANCE.logger.error("An error occurred getting job info.");
-            Config.INSTANCE.logger.error(e.getMessage());
-        }
-
+        this.job_id = job_id;
+        this.job_name = job_name;
+        this.job_comment = job_comment;
+        this.job_log_id = job_log_id;
         processAnnotations();
-
-        final String log_sql =
-                "INSERT INTO pgagent.pga_joblog(jlgjobid, jlgstatus) " +
-                "VALUES (?, ?) " +
-                "RETURNING jlgid;";
-        Config.INSTANCE.logger.debug("Inserting logging and marking job as being worked on.");
-        try (final PreparedStatement log_statement = Database.INSTANCE.getMainConnection().prepareStatement(log_sql))
-        {
-
-            log_statement.setInt(1, this.job_id);
-            log_statement.setString(2, JobStatus.RUNNING.getDbRepresentation());
-            try (final ResultSet resultSet = log_statement.executeQuery())
-            {
-                while (resultSet.next())
-                {
-                    job_log_id = resultSet.getInt("jlgid");
-                }
-            }
-        }
-        catch (final SQLException e)
-        {
-            Config.INSTANCE.logger.error(e.getMessage());
-        }
-
-        buildSteps();
         Config.INSTANCE.logger.debug("Job instantiation complete.");
     }
 
@@ -138,8 +100,8 @@ public class Job implements CancellableRunnable
 
                 for (JobStep job_step : job_step_list)
                 {
-                    if (job_step.getStepStatus().equals(JobStep.StepStatus.FAIL)
-                            && job_step.getOnError().equals(JobStep.OnError.FAIL))
+                    if (job_step.getStepStatus().equals(StepStatus.FAIL)
+                            && job_step.getOnError().equals(OnError.FAIL))
                     {
                         failed_step = true;
                     }
@@ -168,26 +130,10 @@ public class Job implements CancellableRunnable
             Config.INSTANCE.logger.error(e.getMessage());
         }
 
-        final String update_log_sql =
-                "UPDATE pgagent.pga_joblog SET jlgstatus = ?, jlgduration=now() - jlgstart " +
-                        "WHERE jlgid = ?;";
-        final String update_job_sql =
-                "UPDATE pgagent.pga_job SET jobagentid=NULL, jobnextrun=NULL " +
-                        "WHERE jobid = ?;";
-        try (final PreparedStatement update_job_statement = Database.INSTANCE.getMainConnection().prepareStatement(update_job_sql);
-             final PreparedStatement update_log_statement = Database.INSTANCE.getMainConnection().prepareStatement(update_log_sql))
-        {
-            update_job_statement.setInt(1, job_id);
-            update_job_statement.execute();
+        clearJobAgent();
 
-            update_log_statement.setString(1, this.job_status.getDbRepresentation());
-            update_log_statement.setInt(2, this.job_log_id);
-            update_log_statement.execute();
-        }
-        catch (SQLException e)
-        {
-            Config.INSTANCE.logger.error(e.getMessage());
-        }
+        // Update the log record with the result
+        JobLog.finishLog(job_log_id, job_status);
 
         if(email_on.contains(job_status))
         {
@@ -204,57 +150,22 @@ public class Job implements CancellableRunnable
         Config.INSTANCE.logger.info("Job id: {} complete.", job_id);
     }
 
-    /**
-     * Build steps.
-     */
-    private void buildSteps()
+    private void clearJobAgent()
     {
-        Config.INSTANCE.logger.debug("Building steps.");
-        final String step_sql =
-                "SELECT jstid " +
-                ", jstjobid " +
-                ", jstname " +
-                ", jstdesc " +
-                ", jstkind " +
-                ", jstcode " +
-                ", jstconnstr " +
-                ", jstdbname " +
-                ", jstonerror " +
-                "FROM pgagent.pga_jobstep " +
-                "WHERE jstenabled " +
-                "AND jstjobid=? " +
-                "ORDER BY jstname, jstid";
-        try (final PreparedStatement statement = Database.INSTANCE.getMainConnection().prepareStatement(step_sql))
+        final String update_job_sql =
+                "UPDATE pgagent.pga_job SET jobagentid=NULL, jobnextrun=NULL " +
+                "WHERE jobid = ?;";
+        try (final PreparedStatement update_job_statement = Database.INSTANCE.getMainConnection().prepareStatement(update_job_sql))
         {
-            statement.setInt(1, job_id);
-
-            try (final ResultSet resultSet = statement.executeQuery())
-            {
-                while (resultSet.next())
-                {
-                    JobStep job_step = new JobStep(
-                            this.job_log_id,
-                            resultSet.getInt("jstjobid"),
-                            this.job_name,
-                            resultSet.getInt("jstid"),
-                            resultSet.getString("jstname"),
-                            resultSet.getString("jstdesc"),
-                            JobStep.StepType.convertTo(resultSet.getString("jstkind")),
-                            resultSet.getString("jstcode"),
-                            resultSet.getString("jstconnstr"),
-                            resultSet.getString("jstdbname"),
-                            JobStep.OnError.convertTo(resultSet.getString("jstonerror"))
-                    );
-                    job_step_list.add(job_step);
-                }
-            }
+            update_job_statement.setInt(1, job_id);
+            update_job_statement.execute();
         }
-        catch (final SQLException e)
+        catch (SQLException e)
         {
-            Config.INSTANCE.logger.error("An error occurred getting job steps.");
             Config.INSTANCE.logger.error(e.getMessage());
         }
     }
+
 
     /**
      * Assign any values from annotations.
@@ -376,58 +287,23 @@ public class Job implements CancellableRunnable
         }
     }
 
-    protected enum JobStatus
+    public int getJobId()
     {
-        RUNNING("r"),
-        FAIL("f"),
-        SUCCEED("s"),
-        ABORTED("d"),
-        IGNORE("i");
-
-        private final String db_representation;
-
-        JobStatus(final String db_representation)
-        {
-            this.db_representation = db_representation;
-        }
-
-        public static JobStatus convertTo(final String db_string)
-        {
-            for (JobStatus job_status : JobStatus.values())
-            {
-                if (db_string.equals(job_status.db_representation))
-                {
-                    return job_status;
-                }
-            }
-            return null;
-        }
-
-        public String getDbRepresentation()
-        {
-            return db_representation;
-        }
+        return job_id;
     }
 
-    public enum JobAnnotations implements AnnotationDefinition
+    public int getJobLogId()
     {
-        JOB_TIMEOUT(Long.class),
-        EMAIL_ON(String.class),
-        EMAIL_SUBJECT(String.class),
-        EMAIL_BODY(String.class),
-        EMAIL_TO(String.class);
+        return job_log_id;
+    }
 
-        final Class<?> annotation_value_type;
+    public String getJobName()
+    {
+        return job_name;
+    }
 
-        JobAnnotations(final Class annotation_value_type)
-        {
-            this.annotation_value_type = annotation_value_type;
-        }
-
-        @Override
-        public Class<?> getAnnotationValueType()
-        {
-            return this.annotation_value_type;
-        }
+    public void setJobStepList(List<JobStep> job_step_list)
+    {
+        this.job_step_list = job_step_list;
     }
 }

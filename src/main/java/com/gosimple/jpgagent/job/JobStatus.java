@@ -20,14 +20,40 @@
  * SOFTWARE.
  */
 
-package com.gosimple.jpgagent;
+package com.gosimple.jpgagent.job;
 
-import java.util.concurrent.Callable;
-
-interface CancellableCallable<T> extends Callable<T>
+/**
+ * @author Adam Brusselback.
+ */
+public enum JobStatus
 {
-    /**
-     * Should stop any long running process the thread was doing to exit gracefully as quickly as possible.
-     */
-    void cancelTask();
+    RUNNING("r"),
+    FAIL("f"),
+    SUCCEED("s"),
+    ABORTED("d"),
+    IGNORE("i");
+
+    private final String db_representation;
+
+    JobStatus(final String db_representation)
+    {
+        this.db_representation = db_representation;
+    }
+
+    public static JobStatus convertTo(final String db_string)
+    {
+        for (JobStatus job_status : JobStatus.values())
+        {
+            if (db_string.equals(job_status.db_representation))
+            {
+                return job_status;
+            }
+        }
+        return null;
+    }
+
+    public String getDbRepresentation()
+    {
+        return db_representation;
+    }
 }

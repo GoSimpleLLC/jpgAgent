@@ -20,7 +20,11 @@
  * SOFTWARE.
  */
 
-package com.gosimple.jpgagent;
+package com.gosimple.jpgagent.thread;
+
+import com.gosimple.jpgagent.Config;
+import com.gosimple.jpgagent.thread.CancellableCallable;
+import com.gosimple.jpgagent.thread.CancellableRunnable;
 
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -64,24 +68,9 @@ public enum ThreadFactory
 
     private class CancellableExecutor extends ThreadPoolExecutor
     {
-        public CancellableExecutor(int corePoolSize, int maximumPoolSize, long keepAliveTime, TimeUnit unit, BlockingQueue<Runnable> workQueue)
-        {
-            super(corePoolSize, maximumPoolSize, keepAliveTime, unit, workQueue);
-        }
-
         public CancellableExecutor(int corePoolSize, int maximumPoolSize, long keepAliveTime, TimeUnit unit, BlockingQueue<Runnable> workQueue, java.util.concurrent.ThreadFactory threadFactory)
         {
             super(corePoolSize, maximumPoolSize, keepAliveTime, unit, workQueue, threadFactory);
-        }
-
-        public CancellableExecutor(int corePoolSize, int maximumPoolSize, long keepAliveTime, TimeUnit unit, BlockingQueue<Runnable> workQueue, RejectedExecutionHandler handler)
-        {
-            super(corePoolSize, maximumPoolSize, keepAliveTime, unit, workQueue, handler);
-        }
-
-        public CancellableExecutor(int corePoolSize, int maximumPoolSize, long keepAliveTime, TimeUnit unit, BlockingQueue<Runnable> workQueue, java.util.concurrent.ThreadFactory threadFactory, RejectedExecutionHandler handler)
-        {
-            super(corePoolSize, maximumPoolSize, keepAliveTime, unit, workQueue, threadFactory, handler);
         }
 
         /**
@@ -164,9 +153,6 @@ public enum ThreadFactory
             group = new ThreadGroup(this.name);
         }
 
-        /* (non-Javadoc)
-         * @see java.util.concurrent.ThreadFactory#newThread(java.lang.Runnable)
-         */
         public Thread newThread(Runnable r)
         {
             Thread t = new Thread(group, r);

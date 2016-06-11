@@ -20,9 +20,10 @@
  * SOFTWARE.
  */
 
-package com.gosimple.jpgagent;
+package com.gosimple.jpgagent.database;
 
 
+import com.gosimple.jpgagent.Config;
 import org.postgresql.ds.PGSimpleDataSource;
 
 import java.sql.Connection;

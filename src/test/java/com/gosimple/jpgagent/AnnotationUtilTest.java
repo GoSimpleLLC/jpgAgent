@@ -22,6 +22,9 @@
 
 package com.gosimple.jpgagent;
 
+import com.gosimple.jpgagent.annotation.AnnotationUtil;
+import com.gosimple.jpgagent.job.JobAnnotations;
+import com.gosimple.jpgagent.job.step.JobStepAnnotations;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -96,16 +99,16 @@ public class AnnotationUtilTest
         final String test_8 = "bob24";
         final String test_9 = " bob";
 
-        Assert.assertEquals(AnnotationUtil.parseValue(Job.JobAnnotations.JOB_TIMEOUT, test_1, Long.class), new Long(42 * 60 * 1000));
-        Assert.assertNull(AnnotationUtil.parseValue(Job.JobAnnotations.JOB_TIMEOUT, test_1, Double.class));
-        Assert.assertNull(AnnotationUtil.parseValue(Job.JobAnnotations.JOB_TIMEOUT, test_2, Long.class));
-        Assert.assertNull(AnnotationUtil.parseValue(Job.JobAnnotations.JOB_TIMEOUT, test_3, Long.class));
-        Assert.assertNull(AnnotationUtil.parseValue(Job.JobAnnotations.JOB_TIMEOUT, test_4, Long.class));
-        Assert.assertEquals(AnnotationUtil.parseValue(JobStep.JobStepAnnotations.RUN_IN_PARALLEL, test_5, Boolean.class), true);
-        Assert.assertEquals(AnnotationUtil.parseValue(JobStep.JobStepAnnotations.RUN_IN_PARALLEL, test_6, Boolean.class), false);
-        Assert.assertEquals(AnnotationUtil.parseValue(JobStep.JobStepAnnotations.RUN_IN_PARALLEL, test_7, Boolean.class), false);
-        Assert.assertEquals(AnnotationUtil.parseValue(JobStep.JobStepAnnotations.RUN_IN_PARALLEL, test_8, Boolean.class), false);
-        Assert.assertEquals(AnnotationUtil.parseValue(JobStep.JobStepAnnotations.RUN_IN_PARALLEL, test_9, Boolean.class), false);
+        Assert.assertEquals(AnnotationUtil.parseValue(JobAnnotations.JOB_TIMEOUT, test_1, Long.class), new Long(42 * 60 * 1000));
+        Assert.assertNull(AnnotationUtil.parseValue(JobAnnotations.JOB_TIMEOUT, test_1, Double.class));
+        Assert.assertNull(AnnotationUtil.parseValue(JobAnnotations.JOB_TIMEOUT, test_2, Long.class));
+        Assert.assertNull(AnnotationUtil.parseValue(JobAnnotations.JOB_TIMEOUT, test_3, Long.class));
+        Assert.assertNull(AnnotationUtil.parseValue(JobAnnotations.JOB_TIMEOUT, test_4, Long.class));
+        Assert.assertEquals(AnnotationUtil.parseValue(JobStepAnnotations.RUN_IN_PARALLEL, test_5, Boolean.class), true);
+        Assert.assertEquals(AnnotationUtil.parseValue(JobStepAnnotations.RUN_IN_PARALLEL, test_6, Boolean.class), false);
+        Assert.assertEquals(AnnotationUtil.parseValue(JobStepAnnotations.RUN_IN_PARALLEL, test_7, Boolean.class), false);
+        Assert.assertEquals(AnnotationUtil.parseValue(JobStepAnnotations.RUN_IN_PARALLEL, test_8, Boolean.class), false);
+        Assert.assertEquals(AnnotationUtil.parseValue(JobStepAnnotations.RUN_IN_PARALLEL, test_9, Boolean.class), false);
 
     }
 }

@@ -20,8 +20,16 @@
  * SOFTWARE.
  */
 
-package com.gosimple.jpgagent;
+package com.gosimple.jpgagent.job.step;
 
+
+import com.gosimple.jpgagent.*;
+import com.gosimple.jpgagent.annotation.AnnotationUtil;
+import com.gosimple.jpgagent.database.Database;
+import com.gosimple.jpgagent.database.DatabaseAuth;
+import com.gosimple.jpgagent.email.EmailUtil;
+import com.gosimple.jpgagent.job.Job;
+import com.gosimple.jpgagent.thread.CancellableRunnable;
 
 import java.io.*;
 import java.sql.*;
@@ -31,13 +39,11 @@ import java.util.Map;
 
 public class JobStep implements CancellableRunnable
 {
-    private final int job_log_id;
+    private final Job job;
     private int job_step_log_id;
     private StepStatus step_status;
     private int step_result;
     private String step_output;
-    private final int job_id;
-    private final String job_name;
     private final int step_id;
     private final String step_name;
     private final String step_description;
@@ -77,12 +83,10 @@ public class JobStep implements CancellableRunnable
     // Email body
     private String email_body = null;
 
-    public JobStep(final int job_log_id, final int job_id, final String job_name, final int step_id, final String step_name, final String step_description, final StepType step_type, final String code, final String connection_string, final String database_name, final OnError on_error)
+    public JobStep(final Job job, final int step_id, final String step_name, final String step_description, final StepType step_type, final String code, final String connection_string, final String database_name, final OnError on_error)
     {
         Config.INSTANCE.logger.debug("JobStep instantiation begin.");
-        this.job_log_id = job_log_id;
-        this.job_id = job_id;
-        this.job_name = job_name;
+        this.job = job;
         this.step_id = step_id;
         this.step_name = step_name;
         this.step_description = step_description;
@@ -107,27 +111,9 @@ public class JobStep implements CancellableRunnable
     public void run()
     {
         this.start_time = System.currentTimeMillis();
-        final String log_sql =
-                "INSERT INTO pgagent.pga_jobsteplog(jsljlgid, jsljstid, jslstatus) " +
-                "SELECT ?, ?, ? " +
-                "RETURNING jslid;";
-        try (final PreparedStatement log_statement = Database.INSTANCE.getMainConnection().prepareStatement(log_sql))
-        {
-            log_statement.setInt(1, this.job_log_id);
-            log_statement.setInt(2, this.step_id);
-            log_statement.setString(3, StepStatus.RUNNING.getDbRepresentation());
-            try (ResultSet resultSet = log_statement.executeQuery())
-            {
-                while (resultSet.next())
-                {
-                    job_step_log_id = resultSet.getInt("jslid");
-                }
-            }
-        }
-        catch (final SQLException e)
-        {
-            Config.INSTANCE.logger.error(e.getMessage());
-        }
+        // Insert the job step log and get the id
+        this.job_step_log_id = JobStepLog.startLog(job.getJobLogId(), step_id);
+
         switch (step_type)
         {
             case SQL:
@@ -314,25 +300,8 @@ public class JobStep implements CancellableRunnable
             }
         }
 
-        final String update_log_sql =
-                "UPDATE pgagent.pga_jobsteplog " +
-                        "SET jslduration = now() - jslstart, " +
-                        "jslstatus = ?, " +
-                        "jslresult = ?, " +
-                        "jsloutput = ? " +
-                        "WHERE jslid=?";
-        try (PreparedStatement update_log_statement = Database.INSTANCE.getMainConnection().prepareStatement(update_log_sql))
-        {
-            update_log_statement.setString(1, this.step_status.getDbRepresentation());
-            update_log_statement.setInt(2, this.step_result);
-            update_log_statement.setString(3, this.step_output);
-            update_log_statement.setInt(4, this.job_step_log_id);
-            update_log_statement.execute();
-        }
-        catch (final SQLException e)
-        {
-            Config.INSTANCE.logger.error(e.getMessage());
-        }
+        // Update the job step log record with the result of the job step.
+        JobStepLog.finishLog(job_step_log_id, step_status, step_result, step_output);
 
         if(email_on.contains(step_status))
         {
@@ -340,8 +309,8 @@ public class JobStep implements CancellableRunnable
             email_subject = email_subject.replaceAll(Config.INSTANCE.status_token, step_status.name());
             email_body = email_body.replaceAll(Config.INSTANCE.status_token, step_status.name());
 
-            email_subject = email_subject.replaceAll(Config.INSTANCE.job_name_token, job_name);
-            email_body = email_body.replaceAll(Config.INSTANCE.job_name_token, job_name);
+            email_subject = email_subject.replaceAll(Config.INSTANCE.job_name_token, job.getJobName());
+            email_body = email_body.replaceAll(Config.INSTANCE.job_name_token, job.getJobName());
 
             email_subject = email_subject.replaceAll(Config.INSTANCE.job_step_name_token, step_name);
             email_body = email_body.replaceAll(Config.INSTANCE.job_step_name_token, step_name);
@@ -409,7 +378,7 @@ public class JobStep implements CancellableRunnable
         }
         catch (Exception e)
         {
-            Config.INSTANCE.logger.error("An issue with the annotations on job_id/job_step_id: " + job_id + "/" + step_id + "  has stopped them from being processed.");
+            Config.INSTANCE.logger.error("An issue with the annotations on job_id/job_step_id: " + job.getJobId() + "/" + step_id + "  has stopped them from being processed.");
         }
         Config.INSTANCE.logger.debug("JobStep instantiation complete.");
     }
@@ -507,153 +476,6 @@ public class JobStep implements CancellableRunnable
         return this.run_in_parallel;
     }
 
-    class DatabaseAuth
-    {
-        private final String user;
-        private final String pass;
 
-        public DatabaseAuth(final String user, final String pass)
-        {
-            this.user = user;
-            this.pass = pass;
-        }
 
-        public String getUser()
-        {
-            return user;
-        }
-
-        public String getPass()
-        {
-            return pass;
-        }
-    }
-
-    protected enum StepType
-    {
-        SQL("s"),
-        BATCH("b");
-
-        private final String db_representation;
-
-        StepType(final String db_representation)
-        {
-            this.db_representation = db_representation;
-        }
-
-        public static StepType convertTo(final String db_string)
-        {
-            for (StepType step_type : StepType.values())
-            {
-                if (db_string.equals(step_type.db_representation))
-                {
-                    return step_type;
-                }
-            }
-            return null;
-        }
-
-        public String getDbRepresentation()
-        {
-            return db_representation;
-        }
-    }
-
-    protected enum OnError
-    {
-        FAIL("f"),
-        SUCCEED("s"),
-        IGNORE("i");
-
-        private final String db_representation;
-
-        OnError(String db_representation)
-        {
-            this.db_representation = db_representation;
-        }
-
-        public static OnError convertTo(final String db_string)
-        {
-            for (final OnError on_error : OnError.values())
-            {
-                if (db_string.equals(on_error.db_representation))
-                {
-                    return on_error;
-                }
-            }
-            return null;
-        }
-
-        public String getDbRepresentation()
-        {
-            return db_representation;
-        }
-    }
-
-    protected enum StepStatus
-    {
-        RUNNING("r"),
-        FAIL("f"),
-        SUCCEED("s"),
-        ABORTED("d"),
-        IGNORE("i");
-
-        private final String db_representation;
-
-        StepStatus(final String db_representation)
-        {
-            this.db_representation = db_representation;
-        }
-
-        public static StepStatus convertTo(final String db_string)
-        {
-            for (final StepStatus step_status : StepStatus.values())
-            {
-                if (db_string.equals(step_status.db_representation))
-                {
-                    return step_status;
-                }
-            }
-            return null;
-        }
-
-        public String getDbRepresentation()
-        {
-            return db_representation;
-        }
-    }
-
-    protected enum OSType
-    {
-        WIN,
-        NIX
-    }
-
-    public enum JobStepAnnotations implements AnnotationDefinition
-    {
-        RUN_IN_PARALLEL(Boolean.class),
-        JOB_STEP_TIMEOUT(Long.class),
-        DATABASE_NAME(String.class),
-        DATABASE_HOST(String.class),
-        DATABASE_LOGIN(String.class),
-        DATABASE_PASSWORD(String.class),
-        DATABASE_AUTH_QUERY(String.class),
-        EMAIL_ON(String.class),
-        EMAIL_SUBJECT(String.class),
-        EMAIL_BODY(String.class),
-        EMAIL_TO(String.class);
-
-        final Class<?> annotation_value_type;
-
-        JobStepAnnotations(final Class<?> annotation_value_type)
-        {
-            this.annotation_value_type = annotation_value_type;
-        }
-
-        @Override
-        public Class<?> getAnnotationValueType()
-        {
-            return this.annotation_value_type;
-        }
-    }
 }

@@ -20,7 +20,7 @@
  * SOFTWARE.
  */
 
-package com.gosimple.jpgagent;
+package com.gosimple.jpgagent.annotation;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -30,7 +30,7 @@ import java.util.regex.Pattern;
 /**
  * Utility class to parse annotations from strings.
  */
-class AnnotationUtil
+public class AnnotationUtil
 {
     private static final Pattern annotation_pattern = Pattern.compile("^@([A-Z_]+)=(.+);$", Pattern.MULTILINE);
     private static final String value_regex = "^([0-9]*)+ ([a-z]*)+$";

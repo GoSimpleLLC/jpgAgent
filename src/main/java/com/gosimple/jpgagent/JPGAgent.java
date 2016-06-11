@@ -22,6 +22,11 @@
 
 package com.gosimple.jpgagent;
 
+import com.gosimple.jpgagent.database.Database;
+import com.gosimple.jpgagent.job.Job;
+import com.gosimple.jpgagent.job.JobBuilder;
+import com.gosimple.jpgagent.job.step.JobStepBuilder;
+import com.gosimple.jpgagent.thread.ThreadFactory;
 import org.kohsuke.args4j.CmdLineException;
 import org.kohsuke.args4j.CmdLineParser;
 import org.postgresql.PGConnection;
@@ -156,58 +161,58 @@ class JPGAgent
         final String cleanup_sql =
                 "CREATE TEMP TABLE pga_tmp_zombies(jagpid INTEGER); " +
 
-                        "INSERT INTO pga_tmp_zombies (jagpid) " +
-                        "SELECT jagpid " +
-                        "FROM pgagent.pga_jobagent AG " +
-                        "LEFT JOIN pg_stat_activity PA ON jagpid=pid " +
-                        "WHERE pid IS NULL; " +
+                "INSERT INTO pga_tmp_zombies (jagpid) " +
+                "SELECT jagpid " +
+                "FROM pgagent.pga_jobagent AG " +
+                "LEFT JOIN pg_stat_activity PA ON jagpid=pid " +
+                "WHERE pid IS NULL; " +
 
-                        "UPDATE pgagent.pga_joblog SET jlgstatus='d' WHERE jlgid IN (" +
-                        "SELECT jlgid " +
-                        "FROM pga_tmp_zombies z " +
-                        "INNER JOIN pgagent.pga_job j " +
-                        "ON z.jagpid=j.jobagentid " +
-                        "INNER JOIN pgagent.pga_joblog l " +
-                        "ON j.jobid = l.jlgjobid " +
-                        "WHERE l.jlgstatus='r'); " +
+                "UPDATE pgagent.pga_joblog SET jlgstatus='d' WHERE jlgid IN (" +
+                "SELECT jlgid " +
+                "FROM pga_tmp_zombies z " +
+                "INNER JOIN pgagent.pga_job j " +
+                "ON z.jagpid=j.jobagentid " +
+                "INNER JOIN pgagent.pga_joblog l " +
+                "ON j.jobid = l.jlgjobid " +
+                "WHERE l.jlgstatus='r'); " +
 
-                        "UPDATE pgagent.pga_jobsteplog SET jslstatus='d' WHERE jslid IN ( " +
-                        "SELECT jslid " +
-                        "FROM pga_tmp_zombies z " +
-                        "INNER JOIN pgagent.pga_job j " +
-                        "ON z.jagpid=j.jobagentid " +
-                        "INNER JOIN pgagent.pga_joblog l " +
-                        "ON j.jobid = l.jlgjobid " +
-                        "INNER JOIN pgagent.pga_jobsteplog s " +
-                        "ON  l.jlgid = s.jsljlgid " +
-                        "WHERE s.jslstatus='r'); " +
+                "UPDATE pgagent.pga_jobsteplog SET jslstatus='d' WHERE jslid IN ( " +
+                "SELECT jslid " +
+                "FROM pga_tmp_zombies z " +
+                "INNER JOIN pgagent.pga_job j " +
+                "ON z.jagpid=j.jobagentid " +
+                "INNER JOIN pgagent.pga_joblog l " +
+                "ON j.jobid = l.jlgjobid " +
+                "INNER JOIN pgagent.pga_jobsteplog s " +
+                "ON  l.jlgid = s.jsljlgid " +
+                "WHERE s.jslstatus='r'); " +
 
-                        "UPDATE pgagent.pga_jobsteplog SET jslstatus='d' " +
-                        "WHERE jslid IN ( " +
-                        "SELECT jslid " +
-                        "FROM pgagent.pga_joblog l " +
-                        "INNER JOIN  pgagent.pga_jobsteplog s " +
-                        "ON l.jlgid = s.jsljlgid " +
-                        "WHERE TRUE " +
-                        "AND l.jlgstatus <> 'r' " +
-                        "AND s.jslstatus = 'r'); " +
+                "UPDATE pgagent.pga_jobsteplog SET jslstatus='d' " +
+                "WHERE jslid IN ( " +
+                "SELECT jslid " +
+                "FROM pgagent.pga_joblog l " +
+                "INNER JOIN  pgagent.pga_jobsteplog s " +
+                "ON l.jlgid = s.jsljlgid " +
+                "WHERE TRUE " +
+                "AND l.jlgstatus <> 'r' " +
+                "AND s.jslstatus = 'r'); " +
 
-                        "UPDATE pgagent.pga_job SET jobagentid=NULL, jobnextrun=NULL " +
-                        "WHERE jobagentid IN (SELECT jagpid FROM pga_tmp_zombies); " +
+                "UPDATE pgagent.pga_job SET jobagentid=NULL, jobnextrun=NULL " +
+                "WHERE jobagentid IN (SELECT jagpid FROM pga_tmp_zombies); " +
 
-                        "DELETE FROM pgagent.pga_jobagent " +
-                        "WHERE jagpid IN (SELECT jagpid FROM pga_tmp_zombies);" +
+                "DELETE FROM pgagent.pga_jobagent " +
+                "WHERE jagpid IN (SELECT jagpid FROM pga_tmp_zombies);" +
 
-                        "DROP TABLE pga_tmp_zombies; ";
+                "DROP TABLE pga_tmp_zombies; ";
 
 
         final String register_agent_sql =
                 "INSERT INTO pgagent.pga_jobagent (jagpid, jagstation) SELECT ?, ? " +
-                        "WHERE NOT EXISTS (" +
-                        "SELECT 1" +
-                        "FROM pgagent.pga_jobagent " +
-                        "WHERE jagpid = ? " +
-                        "AND jagstation = ?);";
+                "WHERE NOT EXISTS (" +
+                "SELECT 1" +
+                "FROM pgagent.pga_jobagent " +
+                "WHERE jagpid = ? " +
+                "AND jagstation = ?);";
 
         try (final Statement statement = Database.INSTANCE.getMainConnection().createStatement();
              final PreparedStatement register_agent_statement = Database.INSTANCE.getMainConnection().prepareStatement(register_agent_sql))
@@ -248,12 +253,12 @@ class JPGAgent
         Config.INSTANCE.logger.debug("Running jobs begin.");
         final String get_job_sql =
                 "UPDATE pgagent.pga_job " +
-                        "SET jobagentid=?, joblastrun=now() " +
-                        "WHERE jobenabled " +
-                        "AND jobagentid IS NULL " +
-                        "AND jobnextrun <= now() " +
-                        "AND (jobhostagent = '' OR jobhostagent = ?) " +
-                        "RETURNING jobid; ";
+                "SET jobagentid=?, joblastrun=now() " +
+                "WHERE jobenabled " +
+                "AND jobagentid IS NULL " +
+                "AND jobnextrun <= now() " +
+                "AND (jobhostagent = '' OR jobhostagent = ?) " +
+                "RETURNING jobid, jobname, jobdesc;";
 
 
         try (final PreparedStatement get_job_statement = Database.INSTANCE.getMainConnection().prepareStatement(get_job_sql))
@@ -265,7 +270,8 @@ class JPGAgent
                 while (resultSet.next())
                 {
                     final int job_id = resultSet.getInt("jobid");
-                    final Job job = new Job(job_id);
+                    final Job job = JobBuilder.createJob(job_id, resultSet.getString("jobname"), resultSet.getString("jobdesc"));
+                    job.setJobStepList(JobStepBuilder.createJobSteps(job));
                     Config.INSTANCE.logger.debug("Submitting job_id {} for execution.", job_id);
                     job_future_map.put(job_id, ThreadFactory.INSTANCE.submitTask(job));
                 }
@@ -315,7 +321,7 @@ class JPGAgent
         }
         catch (final UnknownHostException e)
         {
-            Config.INSTANCE.logger.error("Had trouble getting a host name to register.");
+            Config.INSTANCE.logger.error("Unable to get host name to register.");
             Config.INSTANCE.logger.error(e.getMessage());
             return false;
         }

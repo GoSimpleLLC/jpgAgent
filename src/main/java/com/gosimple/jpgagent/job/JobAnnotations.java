@@ -20,12 +20,31 @@
  * SOFTWARE.
  */
 
-package com.gosimple.jpgagent;
+package com.gosimple.jpgagent.job;
 
-interface CancellableRunnable extends Runnable
+import com.gosimple.jpgagent.annotation.AnnotationDefinition;
+
+/**
+ * @author Adam Brusselback.
+ */
+public enum JobAnnotations implements AnnotationDefinition
 {
-    /**
-     * Should stop any long running process the thread was doing to exit gracefully as quickly as possible.
-     */
-    void cancelTask();
+    JOB_TIMEOUT(Long.class),
+    EMAIL_ON(String.class),
+    EMAIL_SUBJECT(String.class),
+    EMAIL_BODY(String.class),
+    EMAIL_TO(String.class);
+
+    final Class<?> annotation_value_type;
+
+    JobAnnotations(final Class annotation_value_type)
+    {
+        this.annotation_value_type = annotation_value_type;
+    }
+
+    @Override
+    public Class<?> getAnnotationValueType()
+    {
+        return this.annotation_value_type;
+    }
 }

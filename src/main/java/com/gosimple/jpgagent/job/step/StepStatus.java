@@ -20,9 +20,40 @@
  * SOFTWARE.
  */
 
-package com.gosimple.jpgagent;
+package com.gosimple.jpgagent.job.step;
 
-interface AnnotationDefinition
+/**
+ * @author Adam Brusselback.
+ */
+public enum StepStatus
 {
-    Class<?> getAnnotationValueType();
+    RUNNING("r"),
+    FAIL("f"),
+    SUCCEED("s"),
+    ABORTED("d"),
+    IGNORE("i");
+
+    private final String db_representation;
+
+    StepStatus(final String db_representation)
+    {
+        this.db_representation = db_representation;
+    }
+
+    public static StepStatus convertTo(final String db_string)
+    {
+        for (final StepStatus step_status : StepStatus.values())
+        {
+            if (db_string.equals(step_status.db_representation))
+            {
+                return step_status;
+            }
+        }
+        return null;
+    }
+
+    public String getDbRepresentation()
+    {
+        return db_representation;
+    }
 }
