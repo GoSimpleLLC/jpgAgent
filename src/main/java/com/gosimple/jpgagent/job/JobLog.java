@@ -43,10 +43,7 @@ public class JobLog
     public static int startLog(final int job_id)
     {
         Config.INSTANCE.logger.debug("Inserting logging and marking job as being worked on.");
-        final String log_sql =
-                "INSERT INTO pgagent.pga_joblog(jlgjobid, jlgstatus) " +
-                "VALUES (?, ?) " +
-                "RETURNING jlgid;";
+        final String log_sql = Config.INSTANCE.sql.getProperty("sql.joblog.start_log");
         Integer job_log_id = null;
         try (final PreparedStatement log_statement = Database.INSTANCE.getMainConnection().prepareStatement(log_sql))
         {
@@ -77,9 +74,7 @@ public class JobLog
 
     public static void finishLog(final int job_log_id, final JobStatus job_status)
     {
-        final String log_sql =
-                "UPDATE pgagent.pga_joblog SET jlgstatus = ?, jlgduration=now() - jlgstart " +
-                "WHERE jlgid = ?;";
+        final String log_sql = Config.INSTANCE.sql.getProperty("sql.joblog.finish_log");
         try (final PreparedStatement log_statement = Database.INSTANCE.getMainConnection().prepareStatement(log_sql))
         {
             log_statement.setString(1, job_status.getDbRepresentation());

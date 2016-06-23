@@ -42,10 +42,7 @@ public class JobStepLog
      */
     public static int startLog(final int job_log_id, final int step_id)
     {
-        final String log_sql =
-                "INSERT INTO pgagent.pga_jobsteplog(jsljlgid, jsljstid, jslstatus) " +
-                "SELECT ?, ?, ? " +
-                "RETURNING jslid;";
+        final String log_sql = Config.INSTANCE.sql.getProperty("sql.jobsteplog.start_log");
         Integer job_step_log_id = null;
         try (final PreparedStatement log_statement = Database.INSTANCE.getMainConnection().prepareStatement(log_sql))
         {
@@ -76,13 +73,7 @@ public class JobStepLog
 
     public static void finishLog(final int job_step_log_id, final StepStatus step_status, final int step_result, final String step_output)
     {
-        final String log_sql =
-                "UPDATE pgagent.pga_jobsteplog " +
-                        "SET jslduration = now() - jslstart, " +
-                        "jslstatus = ?, " +
-                        "jslresult = ?, " +
-                        "jsloutput = ? " +
-                        "WHERE jslid=?";
+        final String log_sql = Config.INSTANCE.sql.getProperty("sql.jobsteplog.finish_log");
         try (PreparedStatement update_log_statement = Database.INSTANCE.getMainConnection().prepareStatement(log_sql))
         {
             update_log_statement.setString(1, step_status.getDbRepresentation());

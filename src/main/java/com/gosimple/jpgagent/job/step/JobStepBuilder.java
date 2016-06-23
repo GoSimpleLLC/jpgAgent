@@ -112,20 +112,7 @@ public class JobStepBuilder
     {
         Config.INSTANCE.logger.debug("Building steps.");
         List<JobStep> job_step_list = new ArrayList<>();
-        final String step_sql =
-                "SELECT jstid " +
-                ", jstjobid " +
-                ", jstname " +
-                ", jstdesc " +
-                ", jstkind " +
-                ", jstcode " +
-                ", jstconnstr " +
-                ", jstdbname " +
-                ", jstonerror " +
-                "FROM pgagent.pga_jobstep " +
-                "WHERE jstenabled " +
-                "AND jstjobid=? " +
-                "ORDER BY jstname, jstid";
+        final String step_sql = Config.INSTANCE.sql.getProperty("sql.jobstepbuilder.build_step");
         try (final PreparedStatement statement = Database.INSTANCE.getMainConnection().prepareStatement(step_sql))
         {
             statement.setInt(1, job.getJobId());

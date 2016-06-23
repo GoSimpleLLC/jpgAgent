@@ -152,9 +152,7 @@ public class Job implements CancellableRunnable
 
     private void clearJobAgent()
     {
-        final String update_job_sql =
-                "UPDATE pgagent.pga_job SET jobagentid=NULL, jobnextrun=NULL " +
-                "WHERE jobid = ?;";
+        final String update_job_sql = Config.INSTANCE.sql.getProperty("sql.job.clear_job_agent");
         try (final PreparedStatement update_job_statement = Database.INSTANCE.getMainConnection().prepareStatement(update_job_sql))
         {
             update_job_statement.setInt(1, job_id);

@@ -26,11 +26,33 @@ import org.kohsuke.args4j.Option;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.InputStream;
+import java.util.Properties;
+
 
 public enum Config
 {
     INSTANCE;
 
+    Config()
+    {
+        // Load the properties
+        try(InputStream input = Thread.currentThread().getContextClassLoader().getResourceAsStream("sql.properties"))
+        {
+            sql.load(input);
+        }
+        catch (Exception e)
+        {
+            // Quit since we couldn't load the sql.
+            System.out.println("jpgAgent could not load it's sql properties file and has failed to start.");
+            System.exit(-1);
+        }
+    }
+
+    // Properties
+    public final Properties sql = new Properties();
     // Create a logger.
     public final Logger logger = LoggerFactory.getLogger("jpgAgent");
     // Host name for the system running jpgAgent.

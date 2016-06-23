@@ -114,7 +114,7 @@ class JPGAgent
     private static void processNotifications() throws Exception
     {
         try (final Statement statement = Database.INSTANCE.getListenerConnection().createStatement();
-             final ResultSet result_set = statement.executeQuery("SELECT 1;"))
+             final ResultSet result_set = statement.executeQuery(Config.INSTANCE.sql.getProperty("sql.jpgagent.dummy")))
         {
             Config.INSTANCE.logger.debug("Kill jobs begin.");
             final PGConnection pg_connection = Database.INSTANCE.getListenerConnection().unwrap(PGConnection.class);
@@ -158,61 +158,9 @@ class JPGAgent
 
         Config.INSTANCE.logger.debug("Running cleanup to clear old data and re-initialize to start processing.");
 
-        final String cleanup_sql =
-                "CREATE TEMP TABLE pga_tmp_zombies(jagpid INTEGER); " +
+        final String cleanup_sql = Config.INSTANCE.sql.getProperty("sql.jpgagent.cleanup");
 
-                "INSERT INTO pga_tmp_zombies (jagpid) " +
-                "SELECT jagpid " +
-                "FROM pgagent.pga_jobagent AG " +
-                "LEFT JOIN pg_stat_activity PA ON jagpid=pid " +
-                "WHERE pid IS NULL; " +
-
-                "UPDATE pgagent.pga_joblog SET jlgstatus='d' WHERE jlgid IN (" +
-                "SELECT jlgid " +
-                "FROM pga_tmp_zombies z " +
-                "INNER JOIN pgagent.pga_job j " +
-                "ON z.jagpid=j.jobagentid " +
-                "INNER JOIN pgagent.pga_joblog l " +
-                "ON j.jobid = l.jlgjobid " +
-                "WHERE l.jlgstatus='r'); " +
-
-                "UPDATE pgagent.pga_jobsteplog SET jslstatus='d' WHERE jslid IN ( " +
-                "SELECT jslid " +
-                "FROM pga_tmp_zombies z " +
-                "INNER JOIN pgagent.pga_job j " +
-                "ON z.jagpid=j.jobagentid " +
-                "INNER JOIN pgagent.pga_joblog l " +
-                "ON j.jobid = l.jlgjobid " +
-                "INNER JOIN pgagent.pga_jobsteplog s " +
-                "ON  l.jlgid = s.jsljlgid " +
-                "WHERE s.jslstatus='r'); " +
-
-                "UPDATE pgagent.pga_jobsteplog SET jslstatus='d' " +
-                "WHERE jslid IN ( " +
-                "SELECT jslid " +
-                "FROM pgagent.pga_joblog l " +
-                "INNER JOIN  pgagent.pga_jobsteplog s " +
-                "ON l.jlgid = s.jsljlgid " +
-                "WHERE TRUE " +
-                "AND l.jlgstatus <> 'r' " +
-                "AND s.jslstatus = 'r'); " +
-
-                "UPDATE pgagent.pga_job SET jobagentid=NULL, jobnextrun=NULL " +
-                "WHERE jobagentid IN (SELECT jagpid FROM pga_tmp_zombies); " +
-
-                "DELETE FROM pgagent.pga_jobagent " +
-                "WHERE jagpid IN (SELECT jagpid FROM pga_tmp_zombies);" +
-
-                "DROP TABLE pga_tmp_zombies; ";
-
-
-        final String register_agent_sql =
-                "INSERT INTO pgagent.pga_jobagent (jagpid, jagstation) SELECT ?, ? " +
-                "WHERE NOT EXISTS (" +
-                "SELECT 1" +
-                "FROM pgagent.pga_jobagent " +
-                "WHERE jagpid = ? " +
-                "AND jagstation = ?);";
+        final String register_agent_sql = Config.INSTANCE.sql.getProperty("sql.jpgagent.register_agent");
 
         try (final Statement statement = Database.INSTANCE.getMainConnection().createStatement();
              final PreparedStatement register_agent_statement = Database.INSTANCE.getMainConnection().prepareStatement(register_agent_sql))
@@ -251,14 +199,7 @@ class JPGAgent
     private static void runJobs() throws Exception
     {
         Config.INSTANCE.logger.debug("Running jobs begin.");
-        final String get_job_sql =
-                "UPDATE pgagent.pga_job " +
-                "SET jobagentid=?, joblastrun=now() " +
-                "WHERE jobenabled " +
-                "AND jobagentid IS NULL " +
-                "AND jobnextrun <= now() " +
-                "AND (jobhostagent = '' OR jobhostagent = ?) " +
-                "RETURNING jobid, jobname, jobdesc;";
+        final String get_job_sql = Config.INSTANCE.sql.getProperty("sql.jpgagent.get_job");
 
 
         try (final PreparedStatement get_job_statement = Database.INSTANCE.getMainConnection().prepareStatement(get_job_sql))
@@ -317,7 +258,7 @@ class JPGAgent
 
         try
         {
-            Config.INSTANCE.hostname = InetAddress.getLocalHost().getCanonicalHostName();
+            Config.INSTANCE.hostname = InetAddress.getLocalHost().getHostName();
         }
         catch (final UnknownHostException e)
         {
