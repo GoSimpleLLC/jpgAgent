@@ -36,61 +36,62 @@ public class EmailUtil
     }
 
     private static void sendEmail(String[] to, String from, String subject, String body) {
-        final Session session;
-        Properties emailProp = System.getProperties();
-        emailProp.put("mail.smtp.host", Config.INSTANCE.smtp_host);
-        emailProp.put("mail.smtp.port", Config.INSTANCE.smtp_port);
-
-        if(Config.INSTANCE.smtp_ssl)
+        try
         {
-            emailProp.put("mail.smtp.socketFactory.port", Config.INSTANCE.smtp_port);
-            emailProp.put("mail.smtp.socketFactory.class", "javax.net.ssl.SSLSocketFactory");
-        }
-        else
-        {
+            final Session session;
+            Properties emailProp = System.getProperties();
+            emailProp.put("mail.smtp.host", Config.INSTANCE.smtp_host);
             emailProp.put("mail.smtp.port", Config.INSTANCE.smtp_port);
-        }
 
-        if(null != Config.INSTANCE.smtp_user)
-        {
-            emailProp.put("mail.smtp.auth", "true");
-            Authenticator authenticator = new Authenticator()
+            if (Config.INSTANCE.smtp_ssl)
             {
-                @Override
-                protected PasswordAuthentication getPasswordAuthentication()
+                emailProp.put("mail.smtp.socketFactory.port", Config.INSTANCE.smtp_port);
+                emailProp.put("mail.smtp.socketFactory.class", "javax.net.ssl.SSLSocketFactory");
+            }
+            else
+            {
+                emailProp.put("mail.smtp.port", Config.INSTANCE.smtp_port);
+            }
+
+            if (null != Config.INSTANCE.smtp_user)
+            {
+                emailProp.put("mail.smtp.auth", "true");
+                Authenticator authenticator = new Authenticator()
                 {
-                    return new PasswordAuthentication(Config.INSTANCE.smtp_user, Config.INSTANCE.smtp_password);
-                }
-            };
-            session = Session.getDefaultInstance(emailProp, authenticator);
-        }
-        else
-        {
-            emailProp.put("mail.smtp.auth", "false");
-            session = Session.getDefaultInstance(emailProp);
-        }
-
-
-        try {
-            MimeMessage message = new MimeMessage(session);
-            message.setFrom(new InternetAddress(from));
-            InternetAddress[] toAddress = new InternetAddress[to.length];
-
-            // To get the array of addresses
-            for( int i = 0; i < to.length; i++ ) {
-                toAddress[i] = new InternetAddress(to[i]);
+                    @Override
+                    protected PasswordAuthentication getPasswordAuthentication()
+                    {
+                        return new PasswordAuthentication(Config.INSTANCE.smtp_user, Config.INSTANCE.smtp_password);
+                    }
+                };
+                session = Session.getDefaultInstance(emailProp, authenticator);
             }
-
-            for (InternetAddress toAddres : toAddress)
+            else
             {
-                message.addRecipient(Message.RecipientType.TO, toAddres);
+                emailProp.put("mail.smtp.auth", "false");
+                session = Session.getDefaultInstance(emailProp);
             }
+                MimeMessage message = new MimeMessage(session);
+                message.setFrom(new InternetAddress(from));
+                InternetAddress[] toAddress = new InternetAddress[to.length];
 
-            message.setSubject(subject);
-            message.setContent(body, "text/html; charset=utf-8");
-            Transport.send(message);
+                // To get the array of addresses
+                for (int i = 0; i < to.length; i++)
+                {
+                    toAddress[i] = new InternetAddress(to[i]);
+                }
+
+                for (InternetAddress toAddres : toAddress)
+                {
+                    message.addRecipient(Message.RecipientType.TO, toAddres);
+                }
+
+                message.setSubject(subject);
+                message.setContent(body, "text/html; charset=utf-8");
+                Transport.send(message);
         }
         catch (Exception e) {
+            Config.INSTANCE.logger.error("An error occurred when sending email. Please check your configuration.");
             Config.INSTANCE.logger.error(e.getMessage());
         }
     }
