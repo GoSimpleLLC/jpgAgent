@@ -24,7 +24,6 @@ package com.gosimple.jpgagent.job;
 
 import com.gosimple.jpgagent.Config;
 import com.gosimple.jpgagent.database.Database;
-import com.gosimple.jpgagent.job.step.StepStatus;
 
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;

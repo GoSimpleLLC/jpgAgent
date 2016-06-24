@@ -22,16 +22,6 @@
 
 package com.gosimple.jpgagent.job;
 
-import com.gosimple.jpgagent.Config;
-import com.gosimple.jpgagent.database.Database;
-import com.gosimple.jpgagent.job.step.JobStep;
-import com.gosimple.jpgagent.job.step.JobStepBuilder;
-
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.util.List;
-
 public class JobBuilder
 {
     private Integer job_id;
