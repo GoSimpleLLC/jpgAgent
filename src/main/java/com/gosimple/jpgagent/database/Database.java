@@ -78,7 +78,7 @@ public enum Database
             }
             main_connection = Database.INSTANCE.getConnection(Config.INSTANCE.db_host, Config.INSTANCE.db_database);
 
-            String pid_sql = "SELECT pg_backend_pid();";
+            String pid_sql = Config.INSTANCE.sql.getProperty("sql.database.get_pid");
             try (Statement statement = main_connection.createStatement())
             {
                 try (ResultSet result = statement.executeQuery(pid_sql))
@@ -124,7 +124,7 @@ public enum Database
             }
             listener_connection = Database.INSTANCE.getConnection(Config.INSTANCE.db_host, Config.INSTANCE.db_database);
 
-            String listen_sql = "LISTEN jpgagent_kill_job;";
+            String listen_sql = Config.INSTANCE.sql.getProperty("sql.database.listen");
             try (Statement statement = listener_connection.createStatement())
             {
                 statement.execute(listen_sql);
