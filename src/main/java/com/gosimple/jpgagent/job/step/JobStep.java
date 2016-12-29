@@ -161,16 +161,14 @@ public class JobStep implements CancellableRunnable
 
                     for(DatabaseAuth auth : db_auth)
                     {
-                        try (Connection connection = Database.INSTANCE.getConnection(getHost(), getDatabase(), auth.getUser(), auth.getPass()))
+                        try (Connection connection = Database.INSTANCE.getConnection(getHost(), getDatabase(), auth.getUser(), auth.getPass());
+                             Statement statement = connection.createStatement())
                         {
-                            try (Statement statement = connection.createStatement())
-                            {
-                                this.running_statement = statement;
-                                statement.execute(code);
-                                this.running_statement = null;
-                                step_result = 1;
-                                step_status = StepStatus.SUCCEED;
-                            }
+                            this.running_statement = statement;
+                            statement.execute(code);
+                            this.running_statement = null;
+                            step_result = 1;
+                            step_status = StepStatus.SUCCEED;
                         }
                     }
                 }
@@ -207,9 +205,6 @@ public class JobStep implements CancellableRunnable
 
                 try
                 {
-                    // Replace line breaks for each OS type.
-                    code = code.replaceAll("\\r\\n|\\r|\\n", System.getProperty("line.separator"));
-
                     final String fileExtension;
                     if (os_type.equals(OSType.WIN))
                     {
@@ -225,59 +220,93 @@ public class JobStep implements CancellableRunnable
                     tmp_file_script.setWritable(true);
                     tmp_file_script.setExecutable(true);
 
-
-                    final BufferedWriter buffered_writer = new BufferedWriter(new FileWriter(tmp_file_script));
-                    buffered_writer.write(this.code);
-                    buffered_writer.close();
-
-                    final ProcessBuilder process_builder = new ProcessBuilder(tmp_file_script.getAbsolutePath());
-                    this.running_process = process_builder.start();
-                    this.running_process.waitFor();
-
-
-                    final BufferedReader buffered_reader_out = new BufferedReader(new InputStreamReader(this.running_process.getInputStream()));
-                    final BufferedReader buffered_reader_error = new BufferedReader(new InputStreamReader(this.running_process.getErrorStream()));
-                    final StringBuilder string_builder = new StringBuilder();
-                    String line;
-                    // Get normal output.
-                    while ((line = buffered_reader_out.readLine()) != null)
+                    try
                     {
-                        string_builder.append(line);
-                        string_builder.append(System.getProperty("line.separator"));
-                    }
-                    // Get error output.
-                    while ((line = buffered_reader_error.readLine()) != null)
-                    {
-                        string_builder.append(line);
-                        string_builder.append(System.getProperty("line.separator"));
-                    }
+                        // Replace line breaks for each OS type.
+                        code = code.replaceAll("\\r\\n|\\r|\\n", System.getProperty("line.separator"));
 
-                    tmp_file_script.delete();
-                    this.step_output = string_builder.toString();
-                    this.step_result = running_process.exitValue();
-                    switch (step_result)
-                    {
-                        case 0:
+
+                        try(final BufferedWriter buffered_writer = new BufferedWriter(new FileWriter(tmp_file_script)))
                         {
-                            step_status = StepStatus.SUCCEED;
-                            break;
+                            buffered_writer.write(this.code);
                         }
-                        case 1:
-                        default:
+
+                        final ProcessBuilder process_builder = new ProcessBuilder(tmp_file_script.getAbsolutePath());
+                        this.running_process = process_builder.start();
+                        this.running_process.waitFor();
+
+
+                        final StringBuilder string_builder = new StringBuilder();
+                        try (final BufferedReader buffered_reader_out = new BufferedReader(new InputStreamReader(this.running_process.getInputStream()));
+                             final BufferedReader buffered_reader_error = new BufferedReader(new InputStreamReader(this.running_process.getErrorStream())))
                         {
-                            step_status = StepStatus.FAIL;
-                            break;
+                            String line;
+                            // Get normal output.
+                            while ((line = buffered_reader_out.readLine()) != null)
+                            {
+                                string_builder.append(line);
+                                string_builder.append(System.getProperty("line.separator"));
+                            }
+                            // Get error output.
+                            while ((line = buffered_reader_error.readLine()) != null)
+                            {
+                                string_builder.append(line);
+                                string_builder.append(System.getProperty("line.separator"));
+                            }
                         }
+
+                        this.step_output = string_builder.toString();
+                        this.step_result = running_process.exitValue();
+                        switch (step_result)
+                        {
+                            case 0:
+                            {
+                                step_status = StepStatus.SUCCEED;
+                                Config.INSTANCE.logger.debug("Batch step: {} completed successfully.", step_id);
+                                break;
+                            }
+                            case 1:
+                            default:
+                            {
+                                step_status = StepStatus.FAIL;
+                                Config.INSTANCE.logger.debug("Batch step: {} completed unsuccessfully.", step_id);
+                                break;
+                            }
+                        }
+                    }
+                    catch (InterruptedException e)
+                    {
+                        this.step_result = running_process.exitValue();
+                        Config.INSTANCE.logger.debug("Batch step: {} completed unsuccessfully.", step_id);
+                        this.step_status = StepStatus.ABORTED;
+                    }
+                    catch (Exception e)
+                    {
+                        this.step_result = running_process.exitValue();
+                        Config.INSTANCE.logger.debug("Batch step: {} completed unsuccessfully.", step_id);
+                        if (this.on_error.equals(OnError.FAIL))
+                        {
+                            this.step_status = StepStatus.FAIL;
+                        }
+                        else if (this.on_error.equals(OnError.IGNORE))
+                        {
+                            this.step_status = StepStatus.IGNORE;
+                        }
+                        else if (this.on_error.equals(OnError.SUCCEED))
+                        {
+                            this.step_status = StepStatus.SUCCEED;
+                        }
+                    }
+                    finally
+                    {
+                        this.running_process = null;
+                        tmp_file_script.delete();
                     }
                 }
-                catch (InterruptedException e)
+                catch (IOException e)
                 {
                     this.step_result = running_process.exitValue();
-                    this.step_status = StepStatus.ABORTED;
-                }
-                catch (Exception e)
-                {
-                    this.step_result = running_process.exitValue();
+                    Config.INSTANCE.logger.debug("Batch step: {} completed unsuccessfully.", step_id);
                     if (this.on_error.equals(OnError.FAIL))
                     {
                         this.step_status = StepStatus.FAIL;
@@ -291,11 +320,6 @@ public class JobStep implements CancellableRunnable
                         this.step_status = StepStatus.SUCCEED;
                     }
                 }
-                finally
-                {
-                    this.running_process = null;
-                }
-                Config.INSTANCE.logger.debug("Batch step: {} completed successfully.", step_id);
                 break;
             }
         }
