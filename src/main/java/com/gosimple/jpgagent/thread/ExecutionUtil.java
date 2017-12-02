@@ -23,21 +23,18 @@
 package com.gosimple.jpgagent.thread;
 
 import com.gosimple.jpgagent.Config;
-import com.gosimple.jpgagent.thread.CancellableCallable;
-import com.gosimple.jpgagent.thread.CancellableRunnable;
 
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
 
-public enum ThreadFactory
+public enum ExecutionUtil
 {
     INSTANCE;
 
     private final ThreadPoolExecutor generalThreadPool;
 
-    ThreadFactory()
+    ExecutionUtil()
     {
 
         Executors.newFixedThreadPool(Config.INSTANCE.thread_pool_size);
@@ -47,9 +44,8 @@ public enum ThreadFactory
                 300L,
                 SECONDS,
                 new LinkedBlockingQueue<>(),
-                new PriorityThreadFactory("GeneralPool", Thread.NORM_PRIORITY));
+                java.util.concurrent.Executors.defaultThreadFactory());
     }
-
 
     public void executeTask(Runnable r)
     {
@@ -136,34 +132,6 @@ public enum ThreadFactory
             {
                 return super.newTaskFor(callable);
             }
-        }
-    }
-
-    private class PriorityThreadFactory implements java.util.concurrent.ThreadFactory
-    {
-        private final int prio;
-        private final String name;
-        private final AtomicInteger threadNumber = new AtomicInteger(1);
-        private final ThreadGroup group;
-
-        public PriorityThreadFactory(String name, int prio)
-        {
-            this.prio = prio;
-            this.name = name;
-            group = new ThreadGroup(this.name);
-        }
-
-        public Thread newThread(Runnable r)
-        {
-            Thread t = new Thread(group, r);
-            t.setName(name + "-" + threadNumber.getAndIncrement());
-            t.setPriority(prio);
-            return t;
-        }
-
-        public ThreadGroup getGroup()
-        {
-            return group;
         }
     }
 }

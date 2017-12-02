@@ -59,7 +59,9 @@ public class JobStepLog
         }
         catch (final SQLException e)
         {
-            Config.INSTANCE.logger.error(e.getMessage());
+            Config.INSTANCE.logger.error("Could not save job step log to database.");
+            Config.INSTANCE.logger.error("Exception: " + e.toString());
+            Config.INSTANCE.logger.error("Message: " + e.getMessage());
         }
 
         // If unable to return a job_step_log_id throw an exception.
@@ -84,7 +86,9 @@ public class JobStepLog
         }
         catch (final SQLException e)
         {
-            Config.INSTANCE.logger.error(e.getMessage());
+            Config.INSTANCE.logger.error("Could not save job step log to database.");
+            Config.INSTANCE.logger.error("Exception: " + e.toString());
+            Config.INSTANCE.logger.error("Message: " + e.getMessage());
         }
     }
 }

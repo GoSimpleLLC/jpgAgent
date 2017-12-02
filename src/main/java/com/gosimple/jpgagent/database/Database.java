@@ -92,7 +92,9 @@ public enum Database
         }
         catch (final SQLException e)
         {
-            Config.INSTANCE.logger.error(e.getMessage());
+            Config.INSTANCE.logger.error("Error resetting main connection.");
+            Config.INSTANCE.logger.error("Exception: " + e.toString());
+            Config.INSTANCE.logger.error("Message: " + e.getMessage());
             main_connection = null;
         }
     }
@@ -132,7 +134,9 @@ public enum Database
         }
         catch (final SQLException e)
         {
-            Config.INSTANCE.logger.error(e.getMessage());
+            Config.INSTANCE.logger.error("Error resetting listener connection.");
+            Config.INSTANCE.logger.error("Exception: " + e.toString());
+            Config.INSTANCE.logger.error("Message: " + e.getMessage());
             listener_connection = null;
         }
     }

@@ -28,7 +28,7 @@ import com.gosimple.jpgagent.database.Database;
 import com.gosimple.jpgagent.email.EmailUtil;
 import com.gosimple.jpgagent.job.step.*;
 import com.gosimple.jpgagent.thread.CancellableRunnable;
-import com.gosimple.jpgagent.thread.ThreadFactory;
+import com.gosimple.jpgagent.thread.ExecutionUtil;
 
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
@@ -92,15 +92,15 @@ public class Job implements CancellableRunnable
                         waitOnRunningJobSteps();
                     }
                     // Submit task.
-                    future_map.put(job_step, ThreadFactory.INSTANCE.submitTask(job_step));
+                    future_map.put(job_step, ExecutionUtil.INSTANCE.submitTask(job_step));
                 }
                 // Block until all JobSteps are done.
                 waitOnRunningJobSteps();
 
                 for (JobStep job_step : job_step_list)
                 {
-                    if (job_step.getStepStatus().equals(StepStatus.FAIL)
-                            && job_step.getOnError().equals(OnError.FAIL))
+                    if (StepStatus.FAIL.equals(job_step.getStepStatus())
+                            && OnError.FAIL.equals(job_step.getOnError()))
                     {
                         failed_step = true;
                     }
@@ -126,7 +126,13 @@ public class Job implements CancellableRunnable
         catch (Exception e)
         {
             job_status = JobStatus.FAIL;
-            Config.INSTANCE.logger.error(e.getMessage());
+            Config.INSTANCE.logger.error("Job has failed.");
+            Config.INSTANCE.logger.error("Exception: " + e.toString());
+            Config.INSTANCE.logger.error("Stack trace: ");
+            for(StackTraceElement stackTrace : e.getStackTrace())
+            {
+                Config.INSTANCE.logger.error(stackTrace.toString());
+            }
         }
 
         clearJobAgent();
@@ -159,7 +165,9 @@ public class Job implements CancellableRunnable
         }
         catch (SQLException e)
         {
-            Config.INSTANCE.logger.error(e.getMessage());
+            Config.INSTANCE.logger.error("There was an error clearing the job agent from the job.");
+            Config.INSTANCE.logger.error("Exception: " + e.toString());
+            Config.INSTANCE.logger.error("Message: " + e.getMessage());
         }
     }
 

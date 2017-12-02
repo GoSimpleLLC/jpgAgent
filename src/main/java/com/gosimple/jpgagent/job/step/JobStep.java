@@ -165,15 +165,18 @@ public class JobStep implements CancellableRunnable
                              Statement statement = connection.createStatement())
                         {
                             this.running_statement = statement;
+                            Config.INSTANCE.logger.debug("SQL step: {} starting.", step_id);
                             statement.execute(code);
                             this.running_statement = null;
                             step_result = 1;
                             step_status = StepStatus.SUCCEED;
+                            Config.INSTANCE.logger.debug("SQL step: {} completed successfully.", step_id);
                         }
                     }
                 }
                 catch (final Exception e)
                 {
+                    Config.INSTANCE.logger.debug("SQL step: {} completed unsuccessfully.", step_id);
                     step_output = e.getMessage();
                     if (Thread.currentThread().isInterrupted())
                     {
@@ -196,7 +199,7 @@ public class JobStep implements CancellableRunnable
                         step_status = StepStatus.SUCCEED;
                     }
                 }
-                Config.INSTANCE.logger.debug("SQL step: {} completed successfully.", step_id);
+                Config.INSTANCE.logger.debug("SQL step: {} mostly done.", step_id);
                 break;
             }
             case BATCH:
@@ -324,6 +327,8 @@ public class JobStep implements CancellableRunnable
             }
         }
 
+
+        Config.INSTANCE.logger.debug("Made it here: {}", step_id);
         // Update the job step log record with the result of the job step.
         JobStepLog.finishLog(job_step_log_id, step_status, step_result, step_output);
 
@@ -402,7 +407,7 @@ public class JobStep implements CancellableRunnable
         }
         catch (Exception e)
         {
-            Config.INSTANCE.logger.error("An issue with the annotations on job_id/job_step_id: " + job.getJobId() + "/" + step_id + "  has stopped them from being processed.");
+            Config.INSTANCE.logger.error("An issue with the annotations on job_id/job_step_id: " + job.getJobId() + "/" + step_id + " has stopped them from being processed.");
         }
         Config.INSTANCE.logger.debug("JobStep instantiation complete.");
     }
@@ -446,6 +451,7 @@ public class JobStep implements CancellableRunnable
     @Override
     public void cancelTask()
     {
+        Config.INSTANCE.logger.debug("Job step: {} cancelled.", this.step_id);
         switch (step_type)
         {
             case SQL:
@@ -457,7 +463,9 @@ public class JobStep implements CancellableRunnable
                     }
                     catch (SQLException e)
                     {
-                        Config.INSTANCE.logger.error(e.getMessage());
+                        Config.INSTANCE.logger.error("There was an error canceling the job step.");
+                        Config.INSTANCE.logger.error("Exception: " + e.toString());
+                        Config.INSTANCE.logger.error("Message: " + e.getMessage());
                     }
                 }
                 break;
@@ -499,7 +507,4 @@ public class JobStep implements CancellableRunnable
     {
         return this.run_in_parallel;
     }
-
-
-
 }

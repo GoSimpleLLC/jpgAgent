@@ -22,7 +22,7 @@
 
 package com.gosimple.jpgagent;
 
-import com.gosimple.jpgagent.thread.ThreadFactory;
+import com.gosimple.jpgagent.thread.ExecutionUtil;
 import org.junit.Test;
 
 import java.util.concurrent.Callable;
@@ -45,12 +45,12 @@ public class ThreadFactoryTest
                 System.out.println("I ran.");
             }
         };
-        ThreadFactory.INSTANCE.executeTask(test_1);
+        ExecutionUtil.INSTANCE.executeTask(test_1);
 
         AtomicInteger atomicInteger = new AtomicInteger(0);
         for(int i = 0; i < 100000; i++)
         {
-            ThreadFactory.INSTANCE.executeTask(new Runnable()
+            ExecutionUtil.INSTANCE.executeTask(new Runnable()
             {
                 @Override
                 public void run()
@@ -78,7 +78,7 @@ public class ThreadFactoryTest
             }
         };
 
-        Future<Integer> future = ThreadFactory.INSTANCE.submitTask(test);
+        Future<Integer> future = ExecutionUtil.INSTANCE.submitTask(test);
 
         assertEquals(future.get(), new Integer(42));
     }
@@ -94,7 +94,7 @@ public class ThreadFactoryTest
                 System.out.println("I ran.");
             }
         };
-        Future<?> future = ThreadFactory.INSTANCE.submitTask(test_1);
+        Future<?> future = ExecutionUtil.INSTANCE.submitTask(test_1);
         future.get();
     }
 }

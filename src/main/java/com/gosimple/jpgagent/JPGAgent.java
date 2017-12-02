@@ -26,7 +26,7 @@ import com.gosimple.jpgagent.database.Database;
 import com.gosimple.jpgagent.job.Job;
 import com.gosimple.jpgagent.job.JobBuilder;
 import com.gosimple.jpgagent.job.step.JobStepBuilder;
-import com.gosimple.jpgagent.thread.ThreadFactory;
+import com.gosimple.jpgagent.thread.ExecutionUtil;
 import org.kohsuke.args4j.CmdLineException;
 import org.kohsuke.args4j.CmdLineParser;
 import org.postgresql.PGConnection;
@@ -92,7 +92,13 @@ class JPGAgent
             {
                 // If it fails, sleep and try and restart the loop
                 Config.INSTANCE.logger.error("Error encountered in the main loop.");
-                Config.INSTANCE.logger.error(e.getMessage());
+                Config.INSTANCE.logger.error("Exception: " + e.toString());
+                Config.INSTANCE.logger.error("Message: " + e.getMessage());
+                Config.INSTANCE.logger.error("Stack trace: ");
+                for(StackTraceElement stackTrace : e.getStackTrace())
+                {
+                    Config.INSTANCE.logger.error(stackTrace.toString());
+                }
                 run_cleanup = true;
                 try
                 {
@@ -100,7 +106,14 @@ class JPGAgent
                 }
                 catch (InterruptedException ie)
                 {
+                    Config.INSTANCE.logger.error("Error sleeping main thread.");
+                    Config.INSTANCE.logger.error("Exception: " + ie.toString());
                     Config.INSTANCE.logger.error(ie.getMessage());
+                    Config.INSTANCE.logger.error("Stack trace: ");
+                    for(StackTraceElement stackTrace : e.getStackTrace())
+                    {
+                        Config.INSTANCE.logger.error(stackTrace.toString());
+                    }
                 }
             }
         }
@@ -214,7 +227,7 @@ class JPGAgent
                     final Job job = JobBuilder.createJob(job_id, resultSet.getString("jobname"), resultSet.getString("jobdesc"));
                     job.setJobStepList(JobStepBuilder.createJobSteps(job));
                     Config.INSTANCE.logger.debug("Submitting job_id {} for execution.", job_id);
-                    job_future_map.put(job_id, ThreadFactory.INSTANCE.submitTask(job));
+                    job_future_map.put(job_id, ExecutionUtil.INSTANCE.submitTask(job));
                 }
             }
         }
