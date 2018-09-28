@@ -49,6 +49,10 @@ public enum Database
         data_source.setUser(Config.INSTANCE.db_user);
         data_source.setPassword(Config.INSTANCE.db_password);
         data_source.setApplicationName("jpgAgent: " + Config.INSTANCE.hostname);
+        if (Config.INSTANCE.disable_prepared_statement)
+        {
+            data_source.setPreparedStatementCacheQueries(0);
+        }
     }
 
     /**

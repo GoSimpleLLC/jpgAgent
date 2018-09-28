@@ -106,22 +106,30 @@ Definitions:
     
 
 ## Config options:
-      --help                 : Help (default: true)
-      --port Integer         : Database host port. (default: 5432)
-      --smtp-email String    : Email address used for smtp.
-      --smtp-host String     : Server address used for smtp.
-      --smtp-password String : Password used for smtp.
-      --smtp-port String     : Server Port used for smtp.
-      --smtp-ssl Boolean     : Is SSL enabled for the smtp connection. (default: true)
-      --smtp-user String     : User used for smtp.
-      --version              : Version (default: false)
-      -d String              : jpgAgent database.
-      -h String              : Database host address.
-      -p String              : Database password.
-      -r Integer             : Connection retry interval (ms). (default: 30000)
-      -t Integer             : Job poll interval (ms). (default: 10000)
-      -u String              : Database user.
-      -w Integer             : Size of the thread pool to execute tasks.  Each job and job step can take up to a thread in the pool at once. (default: 40)
+    --disable-prepared-statement Boolean : Disables prepared statements for all
+                                           database connections. Useful if there
+                                           is a pooler in front of the database.
+                                           (default: false)
+    --help                               : Help (default: true)
+    --port Integer                       : Database host port. (default: 5432)
+    --smtp-email String                  : Email address used for smtp.
+    --smtp-host String                   : Server address used for smtp.
+    --smtp-password String               : Password used for smtp.
+    --smtp-port String                   : Server Port used for smtp.
+    --smtp-ssl Boolean                   : Is SSL enabled for the smtp connection. (default: true)
+    --smtp-user String                   : User used for smtp.
+    --version                            : Version (default: false)
+    -d String                            : jpgAgent database.
+    -h String                            : Database host address.
+    -p String                            : Database password.
+    -r Integer                           : Connection retry interval (ms). (default: 30000)
+    -t Integer                           : Job poll interval (ms). (default: 10000)
+    -u String                            : Database user.
+    -w Integer                           : Size of the thread pool to execute
+                                           tasks.  Each job and job step can take
+                                           up to a thread in the pool at once.
+                                           (default: 40)
+
      
 ### Arguments file
 You can create a file which contains your arguments, and pass that into the program instead.  This will protect the password from showing up in logs.
