@@ -280,7 +280,7 @@ public class JobStep implements CancellableRunnable
                     catch (InterruptedException e)
                     {
                         this.step_result = running_process.exitValue();
-                        Config.INSTANCE.logger.debug("Batch step: {} completed unsuccessfully.", step_id);
+                        Config.INSTANCE.logger.debug("Batch step: {} was interrupted and has completed unsuccessfully.", step_id);
                         this.step_status = StepStatus.ABORTED;
                     }
                     catch (Exception e)
