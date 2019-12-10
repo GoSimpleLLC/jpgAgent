@@ -98,15 +98,15 @@ public class JobStepBuilder
         return this;
     }
 
-    public JobStep createJobStep()
+    public JobStep createJobStep() throws Exception
     {
         return new JobStep(job, step_id, step_name, step_description, step_type, code, connection_string, database_name, on_error);
     }
 
     /**
      * Returns a list of job steps to
-     * @param job
-     * @return
+     * @param job The job to create the steps for
+     * @return The list of steps for this job
      */
     public static List<JobStep> createJobSteps(final Job job)
     {
@@ -136,9 +136,9 @@ public class JobStepBuilder
                 }
             }
         }
-        catch (final SQLException e)
+        catch (final Exception e)
         {
-            Config.INSTANCE.logger.error("An error occurred getting job steps.");
+            Config.INSTANCE.logger.error("An error occurred creating job steps.");
             Config.INSTANCE.logger.error(e.getMessage());
         }
         return job_step_list;

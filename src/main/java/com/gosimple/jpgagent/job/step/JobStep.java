@@ -41,9 +41,7 @@ public class JobStep implements CancellableRunnable
 {
     private final Job job;
     private int job_step_log_id;
-    private StepStatus step_status;
-    private int step_result;
-    private String step_output;
+    private JobStepResult step_result;
     private final int step_id;
     private final String step_name;
     private final String step_description;
@@ -56,6 +54,9 @@ public class JobStep implements CancellableRunnable
     private Statement running_statement;
     private Process running_process;
     private Long start_time;
+    private List<DatabaseAuth> db_auth = new ArrayList<>();
+    private File tmp_file_script;
+    private final Object lockObj = new Object();
 
     /*
     * Annotation set parameters.
@@ -83,9 +84,9 @@ public class JobStep implements CancellableRunnable
     // Email body
     private String email_body = null;
 
-    public JobStep(final Job job, final int step_id, final String step_name, final String step_description, final StepType step_type, final String code, final String connection_string, final String database_name, final OnError on_error)
+    public JobStep(final Job job, final int step_id, final String step_name, final String step_description, final StepType step_type, final String code, final String connection_string, final String database_name, final OnError on_error) throws Exception
     {
-        Config.INSTANCE.logger.debug("JobStep instantiation begin.");
+        Config.INSTANCE.logger.debug("Job: {} - Job step: {} - JobStep instantiation begin.", job.getJobId(), step_id);
         this.job = job;
         this.step_id = step_id;
         this.step_name = step_name;
@@ -106,8 +107,207 @@ public class JobStep implements CancellableRunnable
         }
 
         processAnnotations();
+        switch(step_type)
+        {
+            case SQL:
+                initSql();
+                break;
+            case BATCH:
+                initBatch();
+                break;
+        }
     }
 
+    private void initSql() throws Exception
+    {
+        // Throw error if attempting to run a job step with "remote" instead of "local"
+        if(connection_string != null && !connection_string.isEmpty())
+        {
+            Config.INSTANCE.logger.error("Job: {} - Job step: {} - Remote connection types are not supported by jpgAgent. Please configure your job step to use annotations for remote connections.", this.job.getJobId(), this.step_id);
+            throw new IllegalArgumentException();
+        }
+
+        // If there is an db_auth query, run it and add all results to the db_auth list
+        if (database_auth_query != null)
+        {
+            try (Connection connection = Database.INSTANCE.getConnection(getHost(), getDatabase()))
+            {
+                try (Statement statement = connection.createStatement())
+                {
+                    synchronized (lockObj)
+                    {
+                        this.running_statement = statement;
+                    }
+                    try(ResultSet result = statement.executeQuery(database_auth_query))
+                    {
+                        while(result.next())
+                        {
+                            db_auth.add(new DatabaseAuth(result.getString(1), result.getString(2)));
+                        }
+                    }
+                    synchronized (lockObj)
+                    {
+                        this.running_statement = null;
+                    }
+                }
+            }
+        }
+        // If there were explicit credentials passed in, add them to the db_auth list.
+        if(database_login != null || database_password != null)
+        {
+            db_auth.add(new DatabaseAuth(database_login, database_password));
+        }
+        // If nothing else was added to the auth list so far, add the configured jpgAgent credentials.
+        if(db_auth.size() == 0)
+        {
+            db_auth.add(new DatabaseAuth(Config.INSTANCE.db_user, Config.INSTANCE.db_password));
+        }
+    }
+
+    private void initBatch() throws Exception
+    {
+        final String fileExtension;
+        if (os_type.equals(OSType.WIN)) {
+            fileExtension = ".bat";
+        } else {
+            fileExtension = ".sh";
+        }
+
+        tmp_file_script = File.createTempFile("pga_", fileExtension, null);
+        tmp_file_script.deleteOnExit();
+        tmp_file_script.setWritable(true);
+        tmp_file_script.setExecutable(true);
+
+        // Replace line breaks for each OS type.
+        code = code.replaceAll("\\r\\n|\\r|\\n", System.getProperty("line.separator"));
+
+        try (final BufferedWriter buffered_writer = new BufferedWriter(new FileWriter(tmp_file_script))) {
+            buffered_writer.write(this.code);
+        }
+    }
+
+    private void runSql()
+    {
+        Config.INSTANCE.logger.debug("Job: {} - Job step: {} - Executing SQL step.", this.job.getJobId(), this.step_id);
+        final StringBuilder string_builder = new StringBuilder();
+        try
+        {
+            for(DatabaseAuth auth : db_auth)
+            {
+                try (Connection connection = Database.INSTANCE.getConnection(getHost(), getDatabase(), auth.getUser(), auth.getPass());
+                     Statement statement = connection.createStatement())
+                {
+                    synchronized (lockObj)
+                    {
+                        this.running_statement = statement;
+                    }
+                    Config.INSTANCE.logger.debug("Job: {} - Job step: {} - SQL step starting for DatabaseAuth: {}.", this.job.getJobId(), this.step_id, auth.getUser());
+                    string_builder.append("Step starting for DatabaseAuth: " + auth.getUser());
+                    string_builder.append(System.getProperty("line.separator"));
+                    statement.execute(code);
+                    synchronized (lockObj)
+                    {
+                        this.running_statement = null;
+                    }
+                    Config.INSTANCE.logger.debug("Job: {} - Job step: {} - SQL step executed successfully for DatabaseAuth: {}.", this.job.getJobId(), this.step_id, auth.getUser());
+                }
+            }
+            step_result = new JobStepResult(StepStatus.SUCCEED, 0, string_builder.toString());
+        }
+        catch (Exception e)
+        {
+            string_builder.append(e.getMessage());
+            string_builder.append(System.getProperty("line.separator"));
+            if (e instanceof InterruptedException || Thread.currentThread().isInterrupted())
+            {
+                Config.INSTANCE.logger.debug("Job: {} - Job step: {} - Step was interrupted and has completed unsuccessfully.", this.job.getJobId(), this.step_id);
+                step_result = new JobStepResult(StepStatus.ABORTED, -1, string_builder.toString());
+            }
+            else
+            {
+                Config.INSTANCE.logger.debug("Job: {} - Job step: {} - Step encountered an exception and has completed unsuccessfully.", this.job.getJobId(), this.step_id);
+                if (on_error.equals(OnError.FAIL))
+                {
+                    step_result = new JobStepResult(StepStatus.FAIL, -1, string_builder.toString());
+                }
+                else if (on_error.equals(OnError.IGNORE))
+                {
+                    step_result = new JobStepResult(StepStatus.IGNORE, -1, string_builder.toString());
+                }
+                else if (on_error.equals(OnError.SUCCEED))
+                {
+                    step_result = new JobStepResult(StepStatus.SUCCEED, -1, string_builder.toString());
+                }
+            }
+        }
+    }
+
+    private void runBatch()
+    {
+        Config.INSTANCE.logger.debug("Job: {} - Job step: {} - Executing Batch step.", this.job.getJobId(), this.step_id);
+        final StringBuilder string_builder = new StringBuilder();
+        try
+        {
+            final ProcessBuilder process_builder = new ProcessBuilder(tmp_file_script.getAbsolutePath());
+            synchronized (lockObj) {
+                this.running_process = process_builder.start();
+            }
+            Config.INSTANCE.logger.debug("Job: {} - Job step: {} - Batch step started with pid: {}.", this.job.getJobId(), this.step_id, running_process.pid());
+
+            try (final BufferedReader buffered_reader_out = new BufferedReader(new InputStreamReader(this.running_process.getInputStream()))) {
+                String line;
+                // Get normal output.
+                while ((line = buffered_reader_out.readLine()) != null && !Thread.currentThread().isInterrupted()) {
+                    string_builder.append(line);
+                    string_builder.append(System.getProperty("line.separator"));
+                }
+            }
+            this.running_process.waitFor();
+
+            int process_result = running_process.exitValue();
+            switch (process_result) {
+                case 0: {
+                    step_result = new JobStepResult(StepStatus.SUCCEED, process_result, string_builder.toString());
+                    Config.INSTANCE.logger.debug("Job: {} - Job step: {} - Batch step completed successfully.", this.job.getJobId(), this.step_id);
+                    break;
+                }
+                case 1:
+                default: {
+                    step_result = new JobStepResult(StepStatus.FAIL, process_result, string_builder.toString());
+                    Config.INSTANCE.logger.debug("Job: {} - Job step: {} - Batch step completed unsuccessfully.", this.job.getJobId(), this.step_id);
+                    break;
+                }
+            }
+        }
+        catch (Exception e)
+        {
+            if (e instanceof InterruptedException || Thread.currentThread().isInterrupted())
+            {
+                Config.INSTANCE.logger.debug("Job: {} - Job step: {} - Step was interrupted and has completed unsuccessfully.", this.job.getJobId(), this.step_id);
+                step_result = new JobStepResult(StepStatus.ABORTED, -1, string_builder.toString());
+            }
+            else
+            {
+                Config.INSTANCE.logger.debug("Job: {} - Job step: {} - Step encountered an exception and has completed unsuccessfully.", this.job.getJobId(), this.step_id);
+                if (on_error.equals(OnError.FAIL))
+                {
+                    step_result = new JobStepResult(StepStatus.FAIL, -1, string_builder.toString());
+                }
+                else if (on_error.equals(OnError.IGNORE))
+                {
+                    step_result = new JobStepResult(StepStatus.IGNORE, -1, string_builder.toString());
+                }
+                else if (on_error.equals(OnError.SUCCEED))
+                {
+                    step_result = new JobStepResult(StepStatus.SUCCEED, -1, string_builder.toString());
+                }
+            }
+        }
+    }
+
+    /**
+     * The run method executes the actual work to be done for the step
+     */
     public void run()
     {
         this.start_time = System.currentTimeMillis();
@@ -118,225 +318,23 @@ public class JobStep implements CancellableRunnable
         {
             case SQL:
             {
-                Config.INSTANCE.logger.debug("Executing SQL step: {}", step_id);
-                try
-                {
-                    // Throw error if attempting to run a job step with "remote" instead of "local"
-                    if(connection_string != null && !connection_string.isEmpty())
-                    {
-                        throw new IllegalArgumentException("Remote connection types are not supported by jpgAgent. Please configure your job step to use annotations for remote connections.");
-                    }
-
-                    List<DatabaseAuth> db_auth = new ArrayList<>();
-
-                    // If there is an db_auth query, run it and add all results to the db_auth list
-                    if (database_auth_query != null)
-                    {
-                        try (Connection connection = Database.INSTANCE.getConnection(getHost(), getDatabase()))
-                        {
-                            try (Statement statement = connection.createStatement())
-                            {
-                                this.running_statement = statement;
-                                try(ResultSet result = statement.executeQuery(database_auth_query))
-                                {
-                                    while(result.next())
-                                    {
-                                        db_auth.add(new DatabaseAuth(result.getString(1), result.getString(2)));
-                                    }
-                                }
-                                this.running_statement = null;
-                            }
-                        }
-                    }
-                    // If there were explicit credentials passed in, add them to the db_auth list.
-                    if(database_login != null || database_password != null)
-                    {
-                        db_auth.add(new DatabaseAuth(database_login, database_password));
-                    }
-                    // If nothing else was added to the auth list so far, add the configured jpgAgent credentials.
-                    if(db_auth.size() == 0)
-                    {
-                        db_auth.add(new DatabaseAuth(Config.INSTANCE.db_user, Config.INSTANCE.db_password));
-                    }
-
-                    for(DatabaseAuth auth : db_auth)
-                    {
-                        try (Connection connection = Database.INSTANCE.getConnection(getHost(), getDatabase(), auth.getUser(), auth.getPass());
-                             Statement statement = connection.createStatement())
-                        {
-                            this.running_statement = statement;
-                            Config.INSTANCE.logger.debug("SQL step: {} starting.", step_id);
-                            statement.execute(code);
-                            this.running_statement = null;
-                            step_result = 1;
-                            step_status = StepStatus.SUCCEED;
-                            Config.INSTANCE.logger.debug("SQL step: {} completed successfully.", step_id);
-                        }
-                    }
-                }
-                catch (final Exception e)
-                {
-                    Config.INSTANCE.logger.debug("SQL step: {} completed unsuccessfully.", step_id);
-                    step_output = e.getMessage();
-                    if (Thread.currentThread().isInterrupted())
-                    {
-                        step_result = 0;
-                        step_status = StepStatus.ABORTED;
-                    }
-                    else if (on_error.equals(OnError.FAIL))
-                    {
-                        step_result = -1;
-                        step_status = StepStatus.FAIL;
-                    }
-                    else if (on_error.equals(OnError.IGNORE))
-                    {
-                        step_result = -1;
-                        step_status = StepStatus.IGNORE;
-                    }
-                    else if (on_error.equals(OnError.SUCCEED))
-                    {
-                        step_result = -1;
-                        step_status = StepStatus.SUCCEED;
-                    }
-                }
-                Config.INSTANCE.logger.debug("SQL step: {} mostly done.", step_id);
+                runSql();
                 break;
             }
             case BATCH:
             {
-                Config.INSTANCE.logger.debug("Executing Batch step: {}", step_id);
-
-                try
-                {
-                    final String fileExtension;
-                    if (os_type.equals(OSType.WIN))
-                    {
-                        fileExtension = ".bat";
-                    }
-                    else
-                    {
-                        fileExtension = ".sh";
-                    }
-
-                    final File tmp_file_script = File.createTempFile("pga_", fileExtension, null);
-                    tmp_file_script.deleteOnExit();
-                    tmp_file_script.setWritable(true);
-                    tmp_file_script.setExecutable(true);
-
-                    try
-                    {
-                        // Replace line breaks for each OS type.
-                        code = code.replaceAll("\\r\\n|\\r|\\n", System.getProperty("line.separator"));
-
-
-                        try(final BufferedWriter buffered_writer = new BufferedWriter(new FileWriter(tmp_file_script)))
-                        {
-                            buffered_writer.write(this.code);
-                        }
-
-                        final ProcessBuilder process_builder = new ProcessBuilder(tmp_file_script.getAbsolutePath());
-                        this.running_process = process_builder.start();
-                        this.running_process.waitFor();
-
-
-                        final StringBuilder string_builder = new StringBuilder();
-                        try (final BufferedReader buffered_reader_out = new BufferedReader(new InputStreamReader(this.running_process.getInputStream()));
-                             final BufferedReader buffered_reader_error = new BufferedReader(new InputStreamReader(this.running_process.getErrorStream())))
-                        {
-                            String line;
-                            // Get normal output.
-                            while ((line = buffered_reader_out.readLine()) != null)
-                            {
-                                string_builder.append(line);
-                                string_builder.append(System.getProperty("line.separator"));
-                            }
-                            // Get error output.
-                            while ((line = buffered_reader_error.readLine()) != null)
-                            {
-                                string_builder.append(line);
-                                string_builder.append(System.getProperty("line.separator"));
-                            }
-                        }
-
-                        this.step_output = string_builder.toString();
-                        this.step_result = running_process.exitValue();
-                        switch (step_result)
-                        {
-                            case 0:
-                            {
-                                step_status = StepStatus.SUCCEED;
-                                Config.INSTANCE.logger.debug("Batch step: {} completed successfully.", step_id);
-                                break;
-                            }
-                            case 1:
-                            default:
-                            {
-                                step_status = StepStatus.FAIL;
-                                Config.INSTANCE.logger.debug("Batch step: {} completed unsuccessfully.", step_id);
-                                break;
-                            }
-                        }
-                    }
-                    catch (InterruptedException e)
-                    {
-                        this.step_result = running_process.exitValue();
-                        Config.INSTANCE.logger.debug("Batch step: {} was interrupted and has completed unsuccessfully.", step_id);
-                        this.step_status = StepStatus.ABORTED;
-                    }
-                    catch (Exception e)
-                    {
-                        this.step_result = running_process.exitValue();
-                        Config.INSTANCE.logger.debug("Batch step: {} completed unsuccessfully.", step_id);
-                        if (this.on_error.equals(OnError.FAIL))
-                        {
-                            this.step_status = StepStatus.FAIL;
-                        }
-                        else if (this.on_error.equals(OnError.IGNORE))
-                        {
-                            this.step_status = StepStatus.IGNORE;
-                        }
-                        else if (this.on_error.equals(OnError.SUCCEED))
-                        {
-                            this.step_status = StepStatus.SUCCEED;
-                        }
-                    }
-                    finally
-                    {
-                        this.running_process = null;
-                        tmp_file_script.delete();
-                    }
-                }
-                catch (IOException e)
-                {
-                    this.step_result = running_process.exitValue();
-                    Config.INSTANCE.logger.debug("Batch step: {} completed unsuccessfully.", step_id);
-                    if (this.on_error.equals(OnError.FAIL))
-                    {
-                        this.step_status = StepStatus.FAIL;
-                    }
-                    else if (this.on_error.equals(OnError.IGNORE))
-                    {
-                        this.step_status = StepStatus.IGNORE;
-                    }
-                    else if (this.on_error.equals(OnError.SUCCEED))
-                    {
-                        this.step_status = StepStatus.SUCCEED;
-                    }
-                }
+                runBatch();
                 break;
             }
         }
-
-
-        Config.INSTANCE.logger.debug("Made it here: {}", step_id);
         // Update the job step log record with the result of the job step.
-        JobStepLog.finishLog(job_step_log_id, step_status, step_result, step_output);
+        JobStepLog.finishLog(job_step_log_id, step_result);
 
-        if(email_on.contains(step_status))
+        if(email_on.contains(step_result.getStepStatus()))
         {
             // Token replacement
-            email_subject = email_subject.replaceAll(Config.INSTANCE.status_token, step_status.name());
-            email_body = email_body.replaceAll(Config.INSTANCE.status_token, step_status.name());
+            email_subject = email_subject.replaceAll(Config.INSTANCE.status_token, step_result.getStepStatus().name());
+            email_body = email_body.replaceAll(Config.INSTANCE.status_token, step_result.getStepStatus().name());
 
             email_subject = email_subject.replaceAll(Config.INSTANCE.job_name_token, job.getJobName());
             email_body = email_body.replaceAll(Config.INSTANCE.job_name_token, job.getJobName());
@@ -350,7 +348,8 @@ public class JobStep implements CancellableRunnable
     }
 
     /**
-     * Assign any values from annotations.
+     * Assign values from annotations.
+     * Will throw an error in the logs if unable to process all annotations.
      */
     private void processAnnotations()
     {
@@ -407,11 +406,14 @@ public class JobStep implements CancellableRunnable
         }
         catch (Exception e)
         {
-            Config.INSTANCE.logger.error("An issue with the annotations on job_id/job_step_id: " + job.getJobId() + "/" + step_id + " has stopped them from being processed.");
+            Config.INSTANCE.logger.error("Job: {} - Job step: {} - An issue with the annotations and has stopped them from being processed.", this.job.getJobId(), this.step_id);
         }
-        Config.INSTANCE.logger.debug("JobStep instantiation complete.");
+        Config.INSTANCE.logger.debug("Job: {} - Job step: {} - JobStep instantiation complete.", this.job.getJobId(), this.step_id);
     }
 
+    /**
+     * @return the host of the database to connect to for a SQL step
+     */
     private String getHost()
     {
         if(database_host != null)
@@ -424,6 +426,9 @@ public class JobStep implements CancellableRunnable
         }
     }
 
+    /**
+     * @return the name of the database to connect to for a SQL step
+     */
     private String getDatabase()
     {
         return database_name;
@@ -431,7 +436,7 @@ public class JobStep implements CancellableRunnable
 
     /**
      * Returns if the job is timed out or not.
-     * @return
+     * @return true if timed out, false otherwise
      */
     public boolean isTimedOut()
     {
@@ -451,48 +456,42 @@ public class JobStep implements CancellableRunnable
     @Override
     public void cancelTask()
     {
-        Config.INSTANCE.logger.debug("Job step: {} cancelled.", this.step_id);
-        switch (step_type)
+        synchronized (lockObj)
         {
-            case SQL:
-                if (running_statement != null)
-                {
-                    try
-                    {
-                        running_statement.cancel();
+            switch (step_type)
+            {
+                case SQL:
+                    if (running_statement != null) {
+                        try {
+                            running_statement.cancel();
+                            Config.INSTANCE.logger.debug("Job: {} - Job step: {} - cancelled.", this.job.getJobId(), this.step_id);
+                        } catch (SQLException e) {
+                            Config.INSTANCE.logger.error("Job: {} - Job step: {} - There was an error canceling the job step.", this.job.getJobId(), this.step_id);
+                            Config.INSTANCE.logger.error("Job: {} - Job step: {} - Exception: {}", this.job.getJobId(), this.step_id, e.toString());
+                            Config.INSTANCE.logger.error("Job: {} - Job step: {} - Message: {}", this.job.getJobId(), this.step_id, e.getMessage());
+                        }
                     }
-                    catch (SQLException e)
-                    {
-                        Config.INSTANCE.logger.error("There was an error canceling the job step.");
-                        Config.INSTANCE.logger.error("Exception: " + e.toString());
-                        Config.INSTANCE.logger.error("Message: " + e.getMessage());
+                    break;
+                case BATCH:
+                    if (running_process != null) {
+                        running_process.destroyForcibly();
+                        Config.INSTANCE.logger.debug("Job: {} - Job step: {} - cancelled.", this.job.getJobId(), this.step_id);
                     }
-                }
-                break;
-            case BATCH:
-                if (running_process != null && running_process.isAlive())
-                {
-                    running_process.destroy();
-                }
-                break;
+                    break;
+            }
         }
-
     }
 
     /**
-     * Gets the StepStatus of the JobStep.
-     *
-     * @return
+     * @return the StepStatus of the JobStep
      */
     public StepStatus getStepStatus()
     {
-        return step_status;
+        return step_result != null ? step_result.getStepStatus() : null;
     }
 
     /**
-     * Gets the OnError of the JobStep.
-     *
-     * @return
+     * @return the OnError of the JobStep
      */
     public OnError getOnError()
     {
@@ -500,8 +499,7 @@ public class JobStep implements CancellableRunnable
     }
 
     /**
-     * Returns if the job can run in parallel with the previous step.
-     * @return
+     * @return if the job can run in parallel with the previous step
      */
     public Boolean canRunInParallel()
     {

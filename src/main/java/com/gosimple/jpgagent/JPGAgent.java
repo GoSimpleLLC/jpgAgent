@@ -58,8 +58,6 @@ class JPGAgent
 
         Config.INSTANCE.logger.info("jpgAgent starting.");
 
-        Database.INSTANCE.resetMainConnection();
-
         // Enter main loop
         while (true)
         {
@@ -121,8 +119,6 @@ class JPGAgent
 
     /**
      * Processes notifications which may have been issued on channels that jpgAgent is listening on.
-     *
-     * @return
      */
     private static void processNotifications() throws Exception
     {
@@ -131,7 +127,7 @@ class JPGAgent
         {
             Config.INSTANCE.logger.debug("Kill jobs begin.");
             final PGConnection pg_connection = Database.INSTANCE.getListenerConnection().unwrap(PGConnection.class);
-            final PGNotification notifications[] = pg_connection.getNotifications();
+            final PGNotification[] notifications = pg_connection.getNotifications();
 
             if (null != notifications)
             {
@@ -139,7 +135,7 @@ class JPGAgent
                 {
                     if (notification.getName().equals("jpgagent_kill_job"))
                     {
-                        int job_id = Integer.valueOf(notification.getParameter());
+                        int job_id = Integer.parseInt(notification.getParameter());
                         if (job_future_map.containsKey(job_id))
                         {
                             Config.INSTANCE.logger.info("Killing job_id: {}.", job_id);
@@ -158,8 +154,6 @@ class JPGAgent
     /**
      * Does cleanup and initializes jpgAgent to start running jobs again.
      * Only runs if run_cleanup is true.
-     *
-     * @return
      */
     private static void cleanup() throws Exception
     {
@@ -239,8 +233,8 @@ class JPGAgent
      * Sets the arguments passed in from command line.
      * Returns true if successful, false if it encountered an error.
      *
-     * @param args
-     * @return
+     * @param args the arguments to parse
+     * @return if parsing the arguments was successful or not
      */
     private static boolean setArguments(final String[] args)
     {

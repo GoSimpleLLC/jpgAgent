@@ -73,14 +73,14 @@ public class JobStepLog
         return job_step_log_id;
     }
 
-    public static void finishLog(final int job_step_log_id, final StepStatus step_status, final int step_result, final String step_output)
+    public static void finishLog(final int job_step_log_id, final JobStepResult step_result)
     {
         final String log_sql = Config.INSTANCE.sql.getProperty("sql.jobsteplog.finish_log");
         try (PreparedStatement update_log_statement = Database.INSTANCE.getMainConnection().prepareStatement(log_sql))
         {
-            update_log_statement.setString(1, step_status.getDbRepresentation());
-            update_log_statement.setInt(2, step_result);
-            update_log_statement.setString(3, step_output);
+            update_log_statement.setString(1, step_result.getStepStatus().getDbRepresentation());
+            update_log_statement.setInt(2, step_result.getStepResult());
+            update_log_statement.setString(3, step_result.getStepOutput());
             update_log_statement.setInt(4, job_step_log_id);
             update_log_statement.execute();
         }

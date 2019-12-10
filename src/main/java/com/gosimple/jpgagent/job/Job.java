@@ -65,13 +65,13 @@ public class Job implements CancellableRunnable
 
     public Job(final int job_id, final String job_name, final String job_comment, final int job_log_id)
     {
-        Config.INSTANCE.logger.debug("Instantiating Job begin.");
+        Config.INSTANCE.logger.debug("Job: {} - Instantiating Job begin.", job_id);
         this.job_id = job_id;
         this.job_name = job_name;
         this.job_comment = job_comment;
         this.job_log_id = job_log_id;
         processAnnotations();
-        Config.INSTANCE.logger.debug("Job instantiation complete.");
+        Config.INSTANCE.logger.debug("Job: {} - Instantiating Job complete.", job_id);
     }
 
 
@@ -79,7 +79,7 @@ public class Job implements CancellableRunnable
     {
         try
         {
-            Config.INSTANCE.logger.info("Job id: {} started.", job_id);
+            Config.INSTANCE.logger.info("Job: {} - Started.", this.job_id);
             this.start_time = System.currentTimeMillis();
             boolean failed_step = false;
             try
@@ -126,12 +126,12 @@ public class Job implements CancellableRunnable
         catch (Exception e)
         {
             job_status = JobStatus.FAIL;
-            Config.INSTANCE.logger.error("Job has failed.");
-            Config.INSTANCE.logger.error("Exception: " + e.toString());
-            Config.INSTANCE.logger.error("Stack trace: ");
+            Config.INSTANCE.logger.error("Job: {} - Job has failed.", this.job_id);
+            Config.INSTANCE.logger.error("Job: {} - Exception: {}", this.job_id, e.toString());
+            Config.INSTANCE.logger.error("Job: {} - Message: {}", this.job_id, e.getMessage());
             for(StackTraceElement stackTrace : e.getStackTrace())
             {
-                Config.INSTANCE.logger.error(stackTrace.toString());
+                Config.INSTANCE.logger.error("Job: {} - Stack Trace: {}", this.job_id, stackTrace.toString());
             }
         }
 
@@ -152,7 +152,7 @@ public class Job implements CancellableRunnable
             // Send email
             EmailUtil.sendEmailFromNoReply(email_to, email_subject, email_body);
         }
-        Config.INSTANCE.logger.info("Job id: {} complete.", job_id);
+        Config.INSTANCE.logger.info("Job: {} - Complete.", this.job_id);
     }
 
     private void clearJobAgent()
@@ -165,9 +165,9 @@ public class Job implements CancellableRunnable
         }
         catch (SQLException e)
         {
-            Config.INSTANCE.logger.error("There was an error clearing the job agent from the job.");
-            Config.INSTANCE.logger.error("Exception: " + e.toString());
-            Config.INSTANCE.logger.error("Message: " + e.getMessage());
+            Config.INSTANCE.logger.error("Job: {} - There was an error clearing the job agent from the job.", this.job_id);
+            Config.INSTANCE.logger.error("Job: {} - Exception: {}", this.job_id, e.toString());
+            Config.INSTANCE.logger.error("Job: {} - Message: {}", this.job_id, e.getMessage());
         }
     }
 
@@ -206,7 +206,7 @@ public class Job implements CancellableRunnable
         }
         catch (Exception e)
         {
-            Config.INSTANCE.logger.error("An issue with the annotations on job_id: " + job_id + " has stopped them from being processed.");
+            Config.INSTANCE.logger.error("Job: {} - An issue with the annotations has stopped them from being processed.", this.job_id);
         }
     }
 

@@ -37,7 +37,6 @@ public enum ExecutionUtil
     ExecutionUtil()
     {
 
-        Executors.newFixedThreadPool(Config.INSTANCE.thread_pool_size);
         generalThreadPool = new CancellableExecutor(
                 Config.INSTANCE.thread_pool_size,
                 Config.INSTANCE.thread_pool_size,
@@ -91,9 +90,8 @@ public enum ExecutionUtil
                     @Override
                     public boolean cancel(boolean mayInterruptIfRunning)
                     {
-                        boolean return_value = super.cancel(mayInterruptIfRunning);
-                        CancellableRunnable.class.cast(runnable).cancelTask();
-                        return return_value;
+                        ((CancellableRunnable) runnable).cancelTask();
+                        return super.cancel(mayInterruptIfRunning);
                     }
                 };
             }
@@ -123,7 +121,7 @@ public enum ExecutionUtil
                     @Override
                     public boolean cancel(boolean mayInterruptIfRunning)
                     {
-                        CancellableCallable.class.cast(callable).cancelTask();
+                        ((CancellableCallable) callable).cancelTask();
                         return super.cancel(mayInterruptIfRunning);
                     }
                 };
