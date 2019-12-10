@@ -252,7 +252,9 @@ public class JobStep implements CancellableRunnable
             synchronized (lockObj) {
                 this.running_process = process_builder.start();
             }
-            Config.INSTANCE.logger.debug("Job: {} - Job step: {} - Batch step started with pid: {}.", this.job.getJobId(), this.step_id, running_process.pid());
+            Config.INSTANCE.logger.debug("Job: {} - Job step: {} - Batch step started.", this.job.getJobId(), this.step_id);
+            //TODO: When targeting 9+ we should use the below to provide better info
+            //Config.INSTANCE.logger.debug("Job: {} - Job step: {} - Batch step started with pid: {}.", this.job.getJobId(), this.step_id, running_process.pid());
 
             try (final BufferedReader buffered_reader_out = new BufferedReader(new InputStreamReader(this.running_process.getInputStream()))) {
                 String line;
