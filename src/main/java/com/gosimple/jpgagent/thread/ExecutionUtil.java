@@ -22,11 +22,7 @@
 
 package com.gosimple.jpgagent.thread;
 
-import com.gosimple.jpgagent.Config;
-
 import java.util.concurrent.*;
-
-import static java.util.concurrent.TimeUnit.SECONDS;
 
 public enum ExecutionUtil
 {
@@ -36,14 +32,12 @@ public enum ExecutionUtil
 
     ExecutionUtil()
     {
-
         generalThreadPool = new CancellableExecutor(
-                Config.INSTANCE.thread_pool_size,
-                Config.INSTANCE.thread_pool_size,
+                0,
+                Integer.MAX_VALUE,
                 300L,
-                SECONDS,
-                new LinkedBlockingQueue<>(),
-                java.util.concurrent.Executors.defaultThreadFactory());
+                TimeUnit.SECONDS,
+                new SynchronousQueue<>());
     }
 
     public void executeTask(Runnable r)
@@ -63,9 +57,9 @@ public enum ExecutionUtil
 
     private class CancellableExecutor extends ThreadPoolExecutor
     {
-        public CancellableExecutor(int corePoolSize, int maximumPoolSize, long keepAliveTime, TimeUnit unit, BlockingQueue<Runnable> workQueue, java.util.concurrent.ThreadFactory threadFactory)
+        public CancellableExecutor(int corePoolSize, int maximumPoolSize, long keepAliveTime, TimeUnit unit, BlockingQueue<Runnable> workQueue)
         {
-            super(corePoolSize, maximumPoolSize, keepAliveTime, unit, workQueue, threadFactory);
+            super(corePoolSize, maximumPoolSize, keepAliveTime, unit, workQueue);
         }
 
         /**

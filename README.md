@@ -125,10 +125,6 @@ Definitions:
     -r Integer                           : Connection retry interval (ms). (default: 30000)
     -t Integer                           : Job poll interval (ms). (default: 10000)
     -u String                            : Database user.
-    -w Integer                           : Size of the thread pool to execute
-                                           tasks.  Each job and job step can take
-                                           up to a thread in the pool at once.
-                                           (default: 40)
 
      
 ### Arguments file

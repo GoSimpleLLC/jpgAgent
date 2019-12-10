@@ -80,8 +80,6 @@ public enum Config
     public long connection_retry_interval = 30000;
     @Option(name = "--disable-prepared-statement", required = false, usage = "Disables prepared statements for all database connections. Useful if there is a pooler in front of the database.", metaVar = "Boolean")
     public Boolean disable_prepared_statement = false;
-    @Option(name = "-w", required = false, usage = "Size of the thread pool to execute tasks.  Each job and job step can take up to a thread in the pool at once.", metaVar = "Integer")
-    public int thread_pool_size = 40;
     @Option(name = "--smtp-host", required = false, usage = "Server address used for smtp.", metaVar = "String")
     public String smtp_host;
     @Option(name = "--smtp-email", required = false, depends = {"--smtp-host"}, usage = "Email address used for smtp.", metaVar = "String")
