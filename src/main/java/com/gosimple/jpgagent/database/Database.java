@@ -43,8 +43,8 @@ public enum Database
     Database()
     {
         data_source = new PGSimpleDataSource();
-        data_source.setServerName(Config.INSTANCE.db_host);
-        data_source.setPortNumber(Config.INSTANCE.db_port);
+        data_source.setServerNames(new String[]{Config.INSTANCE.db_host});
+        data_source.setPortNumbers(new int[]{Config.INSTANCE.db_port});
         data_source.setDatabaseName(Config.INSTANCE.db_database);
         data_source.setUser(Config.INSTANCE.db_user);
         data_source.setPassword(Config.INSTANCE.db_password);
