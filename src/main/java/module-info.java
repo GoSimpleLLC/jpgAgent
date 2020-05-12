@@ -1,7 +1,7 @@
 /**
  * @author Adam Brusselback.
  */
-module com.gosimple.jpgAgent {
+module com.gosimple.jpgagent {
     requires org.slf4j;
     requires java.sql;
     requires args4j;
