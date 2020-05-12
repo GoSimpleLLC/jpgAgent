@@ -469,7 +469,6 @@ public class JobStep implements CancellableRunnable
                             Config.INSTANCE.logger.debug("Job: {} - Job step: {} - cancelled.", this.job.getJobId(), this.step_id);
                         } catch (SQLException e) {
                             Config.INSTANCE.logger.error("Job: {} - Job step: {} - There was an error canceling the job step.", this.job.getJobId(), this.step_id);
-                            Config.INSTANCE.logger.error("Job: {} - Job step: {} - Exception: {}", this.job.getJobId(), this.step_id, e.toString());
                             Config.INSTANCE.logger.error("Job: {} - Job step: {} - Message: {}", this.job.getJobId(), this.step_id, e.getMessage());
                         }
                     }

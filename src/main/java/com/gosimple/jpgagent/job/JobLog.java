@@ -60,7 +60,6 @@ public class JobLog
         catch (final SQLException e)
         {
             Config.INSTANCE.logger.error("Could not save job log to database.");
-            Config.INSTANCE.logger.error("Exception: " + e.toString());
             Config.INSTANCE.logger.error("Message: " + e.getMessage());
         }
 
@@ -85,7 +84,6 @@ public class JobLog
         catch (SQLException e)
         {
             Config.INSTANCE.logger.error("Could not save job log to database.");
-            Config.INSTANCE.logger.error("Exception: " + e.toString());
             Config.INSTANCE.logger.error("Message: " + e.getMessage());
         }
     }

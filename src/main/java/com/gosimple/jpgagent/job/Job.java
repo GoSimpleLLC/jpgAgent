@@ -127,7 +127,6 @@ public class Job implements CancellableRunnable
         {
             job_status = JobStatus.FAIL;
             Config.INSTANCE.logger.error("Job: {} - Job has failed.", this.job_id);
-            Config.INSTANCE.logger.error("Job: {} - Exception: {}", this.job_id, e.toString());
             Config.INSTANCE.logger.error("Job: {} - Message: {}", this.job_id, e.getMessage());
             for(StackTraceElement stackTrace : e.getStackTrace())
             {
@@ -166,7 +165,6 @@ public class Job implements CancellableRunnable
         catch (SQLException e)
         {
             Config.INSTANCE.logger.error("Job: {} - There was an error clearing the job agent from the job.", this.job_id);
-            Config.INSTANCE.logger.error("Job: {} - Exception: {}", this.job_id, e.toString());
             Config.INSTANCE.logger.error("Job: {} - Message: {}", this.job_id, e.getMessage());
         }
     }
@@ -207,6 +205,7 @@ public class Job implements CancellableRunnable
         catch (Exception e)
         {
             Config.INSTANCE.logger.error("Job: {} - An issue with the annotations has stopped them from being processed.", this.job_id);
+            Config.INSTANCE.logger.error("Error: {}", e.getMessage());
         }
     }
 

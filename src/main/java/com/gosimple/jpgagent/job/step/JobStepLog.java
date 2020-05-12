@@ -60,7 +60,6 @@ public class JobStepLog
         catch (final SQLException e)
         {
             Config.INSTANCE.logger.error("Could not save job step log to database.");
-            Config.INSTANCE.logger.error("Exception: " + e.toString());
             Config.INSTANCE.logger.error("Message: " + e.getMessage());
         }
 
@@ -87,7 +86,6 @@ public class JobStepLog
         catch (final SQLException e)
         {
             Config.INSTANCE.logger.error("Could not save job step log to database.");
-            Config.INSTANCE.logger.error("Exception: " + e.toString());
             Config.INSTANCE.logger.error("Message: " + e.getMessage());
         }
     }

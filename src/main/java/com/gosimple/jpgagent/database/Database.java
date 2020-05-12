@@ -97,7 +97,6 @@ public enum Database
         catch (final SQLException e)
         {
             Config.INSTANCE.logger.error("Error resetting main connection.");
-            Config.INSTANCE.logger.error("Exception: " + e.toString());
             Config.INSTANCE.logger.error("Message: " + e.getMessage());
             main_connection = null;
         }
@@ -139,7 +138,6 @@ public enum Database
         catch (final SQLException e)
         {
             Config.INSTANCE.logger.error("Error resetting listener connection.");
-            Config.INSTANCE.logger.error("Exception: " + e.toString());
             Config.INSTANCE.logger.error("Message: " + e.getMessage());
             listener_connection = null;
         }
@@ -166,7 +164,7 @@ public enum Database
     public synchronized Connection getConnection(final String host_name, final String database) throws SQLException
     {
         data_source.setDatabaseName(database);
-        data_source.setServerName(host_name);
+        data_source.setServerNames(new String[]{host_name});
 
         return data_source.getConnection();
     }
@@ -184,7 +182,7 @@ public enum Database
     public synchronized Connection getConnection(final String host_name, final String database, final String user, final String password) throws SQLException
     {
         data_source.setDatabaseName(database);
-        data_source.setServerName(host_name);
+        data_source.setServerNames(new String[]{host_name});
 
         return data_source.getConnection(user, password);
     }
