@@ -166,6 +166,8 @@ public class Job implements CancellableRunnable
         {
             Config.INSTANCE.logger.error("Job: {} - There was an error clearing the job agent from the job.", this.job_id);
             Config.INSTANCE.logger.error("Job: {} - Message: {}", this.job_id, e.getMessage());
+            Config.INSTANCE.logger.error("Running cleanup next poll to fix this issue.");
+            JPGAgent.runCleanup();
         }
     }
 

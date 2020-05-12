@@ -42,11 +42,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicBoolean;
 
-class JPGAgent
+public class JPGAgent
 {
     private static final Map<Integer, Future<?>> job_future_map = new HashMap<>();
-    private static boolean run_cleanup = true;
+
+    private static AtomicBoolean run_cleanup = new AtomicBoolean(true);
 
     public static void main(String[] args)
     {
@@ -97,7 +99,7 @@ class JPGAgent
                 {
                     Config.INSTANCE.logger.error(stackTrace.toString());
                 }
-                run_cleanup = true;
+                runCleanup();
                 try
                 {
                     Thread.sleep(Config.INSTANCE.connection_retry_interval);
@@ -157,50 +159,48 @@ class JPGAgent
      */
     private static void cleanup() throws Exception
     {
-        if(!run_cleanup)
+        if(run_cleanup.compareAndExchange(true, false))
+        {
+            Config.INSTANCE.logger.debug("Running cleanup to clear old data and re-initialize to start processing.");
+
+            final String cleanup_sql = Config.INSTANCE.sql.getProperty("sql.jpgagent.cleanup");
+
+            final String register_agent_sql = Config.INSTANCE.sql.getProperty("sql.jpgagent.register_agent");
+
+            try (final Statement statement = Database.INSTANCE.getMainConnection().createStatement();
+                 final PreparedStatement register_agent_statement = Database.INSTANCE.getMainConnection().prepareStatement(register_agent_sql))
+            {
+                statement.execute(cleanup_sql);
+                register_agent_statement.setInt(1, Database.INSTANCE.getPid());
+                register_agent_statement.setString(2, Config.INSTANCE.hostname);
+                register_agent_statement.setInt(3, Database.INSTANCE.getPid());
+                register_agent_statement.setString(4, Config.INSTANCE.hostname);
+                register_agent_statement.execute();
+            }
+
+
+            Config.INSTANCE.logger.debug("Cleanup of completed jobs started.");
+            final List<Integer> job_ids_to_remove = new ArrayList<>();
+            for (Integer job_id : job_future_map.keySet())
+            {
+                if (job_future_map.get(job_id).isDone())
+                {
+                    job_ids_to_remove.add(job_id);
+                }
+            }
+
+            for (Integer job_id : job_ids_to_remove)
+            {
+                job_future_map.remove(job_id);
+            }
+            job_ids_to_remove.clear();
+
+            Config.INSTANCE.logger.debug("Successfully cleaned up.");
+        }
+        else
         {
             Config.INSTANCE.logger.debug("Cleanup unnecessary.");
-            return;
         }
-
-        Config.INSTANCE.logger.debug("Running cleanup to clear old data and re-initialize to start processing.");
-
-        final String cleanup_sql = Config.INSTANCE.sql.getProperty("sql.jpgagent.cleanup");
-
-        final String register_agent_sql = Config.INSTANCE.sql.getProperty("sql.jpgagent.register_agent");
-
-        try (final Statement statement = Database.INSTANCE.getMainConnection().createStatement();
-             final PreparedStatement register_agent_statement = Database.INSTANCE.getMainConnection().prepareStatement(register_agent_sql))
-        {
-            statement.execute(cleanup_sql);
-            register_agent_statement.setInt(1, Database.INSTANCE.getPid());
-            register_agent_statement.setString(2, Config.INSTANCE.hostname);
-            register_agent_statement.setInt(3, Database.INSTANCE.getPid());
-            register_agent_statement.setString(4, Config.INSTANCE.hostname);
-            register_agent_statement.execute();
-        }
-
-
-        Config.INSTANCE.logger.debug("Cleanup of completed jobs started.");
-        final List<Integer> job_ids_to_remove = new ArrayList<>();
-        for (Integer job_id : job_future_map.keySet())
-        {
-            if (job_future_map.get(job_id).isDone())
-            {
-                job_ids_to_remove.add(job_id);
-            }
-        }
-
-        for (Integer job_id : job_ids_to_remove)
-        {
-            job_future_map.remove(job_id);
-        }
-        job_ids_to_remove.clear();
-
-        // Set the flag to run the cleanup process to false so this won't run again unless needed
-        run_cleanup = false;
-
-        Config.INSTANCE.logger.debug("Successfully cleaned up.");
     }
 
     private static void runJobs() throws Exception
@@ -274,5 +274,10 @@ class JPGAgent
             return false;
         }
         return true;
+    }
+
+    public static void runCleanup()
+    {
+        run_cleanup.compareAndExchange(false, true);
     }
 }
