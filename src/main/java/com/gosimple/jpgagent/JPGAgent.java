@@ -159,7 +159,7 @@ public class JPGAgent
      */
     private static void cleanup() throws Exception
     {
-        if(run_cleanup.compareAndExchange(true, false))
+        if(run_cleanup.compareAndSet(true, false))
         {
             Config.INSTANCE.logger.debug("Running cleanup to clear old data and re-initialize to start processing.");
 
@@ -246,7 +246,7 @@ public class JPGAgent
         }
         catch (final CmdLineException e)
         {
-            Config.INSTANCE.logger.error(e.getMessage());
+            System.out.println(e.getMessage());
             parser.printUsage(System.out);
             return false;
         }
@@ -278,6 +278,6 @@ public class JPGAgent
 
     public static void runCleanup()
     {
-        run_cleanup.compareAndExchange(false, true);
+        run_cleanup.compareAndSet(false, true);
     }
 }
